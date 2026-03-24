@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { assertPermissao } from '@/lib/auth'
 import type { Fornecedor } from '@/types'
 
 export async function getFornecedores(): Promise<Fornecedor[]> {
@@ -22,6 +23,7 @@ type FornecedorInput = {
 }
 
 export async function criarFornecedor(input: FornecedorInput) {
+  await assertPermissao('fornecedores', 'criar')
   const supabase = await createClient()
   const { error } = await supabase.from('fornecedores').insert({
     nome: input.nome.trim(),
@@ -33,6 +35,7 @@ export async function criarFornecedor(input: FornecedorInput) {
 }
 
 export async function atualizarFornecedor(id: string, input: FornecedorInput) {
+  await assertPermissao('fornecedores', 'editar')
   const supabase = await createClient()
   const { error } = await supabase
     .from('fornecedores')
@@ -47,6 +50,7 @@ export async function atualizarFornecedor(id: string, input: FornecedorInput) {
 }
 
 export async function deletarFornecedor(id: string) {
+  await assertPermissao('fornecedores', 'deletar')
   const supabase = await createClient()
 
   const { data: uso } = await supabase

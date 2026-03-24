@@ -55,6 +55,7 @@ export async function criarFaca(input: FacaInput) {
 }
 
 export async function atualizarFaca(id: string, input: FacaInput) {
+  await assertPermissao('facas', 'editar')
   const supabase = await createClient()
 
   const { error } = await supabase
@@ -72,6 +73,7 @@ export async function atualizarFaca(id: string, input: FacaInput) {
 }
 
 export async function deletarFaca(id: string) {
+  await assertPermissao('facas', 'deletar')
   const supabase = await createClient()
   const { error } = await supabase.from('facas').delete().eq('id', id)
   if (error) throw new Error(error.message)
