@@ -7,14 +7,13 @@ import type { Usuario, PerfilUsuario } from '@/types'
 
 export async function getUsuarios(): Promise<Usuario[]> {
   const admin = createAdminClient()
-
-  // Busca todos os usuários do Auth
   const { data: authData, error: authError } = await admin.auth.admin.listUsers()
   if (authError) throw new Error(authError.message)
 
-  // Busca os perfis
   const supabase = await createClient()
-  const { data: perfis } = await supabase.from('usuarios_perfis').select('*')
+  const { data: perfis } = await supabase
+    .from('usuarios_perfis')
+    .select('*, cargo:cargos(id, nome, cor)')
 
   const perfisMap = new Map((perfis ?? []).map((p) => [p.id, p]))
 
@@ -24,32 +23,29 @@ export async function getUsuarios(): Promise<Usuario[]> {
       id: user.id,
       email: user.email ?? '',
       nome: perfil?.nome ?? user.email?.split('@')[0] ?? '',
-      perfil: perfil?.perfil ?? 'vendas',
+      perfil: (perfil?.perfil ?? 'vendas') as PerfilUsuario,
       ativo: perfil?.ativo ?? true,
+      cargo_id: perfil?.cargo_id ?? null,
+      cargo: perfil?.cargo ?? null,
       created_at: user.created_at,
     }
   })
 }
 
 export async function criarUsuario({
-  email,
-  senha,
-  nome,
-  perfil,
+  email, senha, nome, cargo_id,
 }: {
   email: string
   senha: string
   nome: string
-  perfil: PerfilUsuario
+  cargo_id: string | null
 }) {
   const admin = createAdminClient()
-
   const { data, error } = await admin.auth.admin.createUser({
     email,
     password: senha,
     email_confirm: true,
   })
-
   if (error) throw new Error(error.message)
   if (!data.user) throw new Error('Usuário não criado.')
 
@@ -57,23 +53,22 @@ export async function criarUsuario({
   const { error: perfilError } = await supabase.from('usuarios_perfis').insert({
     id: data.user.id,
     nome: nome.trim(),
-    perfil,
+    perfil: 'vendas', // valor legado, cargo_id é o que vale
     ativo: true,
+    cargo_id: cargo_id || null,
   })
-
   if (perfilError) throw new Error(perfilError.message)
   revalidatePath('/usuarios')
 }
 
 export async function atualizarPerfil(
   id: string,
-  { nome, perfil, ativo }: { nome: string; perfil: PerfilUsuario; ativo: boolean }
+  { nome, ativo, cargo_id }: { nome: string; ativo: boolean; cargo_id: string | null }
 ) {
   const supabase = await createClient()
   const { error } = await supabase
     .from('usuarios_perfis')
-    .upsert({ id, nome: nome.trim(), perfil, ativo })
-
+    .upsert({ id, nome: nome.trim(), perfil: 'vendas', ativo, cargo_id: cargo_id || null })
   if (error) throw new Error(error.message)
   revalidatePath('/usuarios')
 }
