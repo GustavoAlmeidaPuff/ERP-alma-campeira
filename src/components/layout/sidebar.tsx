@@ -105,7 +105,20 @@ const navItems = [
   },
 ]
 
-const activeRoutes = ['/materias-primas', '/facas']
+const bottomItems = [
+  {
+    href: '/configuracoes',
+    label: 'Configurações',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    ),
+  },
+]
+
+const activeRoutes = ['/materias-primas', '/facas', '/configuracoes']
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -132,13 +145,11 @@ export function Sidebar() {
         </span>
       </div>
 
-      {/* Nav */}
+      {/* Nav principal */}
       <nav className="flex-1 overflow-y-auto py-3">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-          const isAvailable = activeRoutes.some(
-            (r) => item.href === r || item.href === '/dashboard'
-          )
+          const isAvailable = activeRoutes.includes(item.href)
 
           return (
             <Link
@@ -146,11 +157,7 @@ export function Sidebar() {
               href={isAvailable ? item.href : '#'}
               className={[
                 'flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors',
-                isActive
-                  ? 'font-semibold'
-                  : isAvailable
-                  ? 'font-normal'
-                  : 'opacity-40 cursor-not-allowed pointer-events-none',
+                isActive ? 'font-semibold' : isAvailable ? 'font-normal' : 'opacity-40 cursor-not-allowed pointer-events-none',
               ].join(' ')}
               style={{
                 color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)',
@@ -165,6 +172,29 @@ export function Sidebar() {
           )
         })}
       </nav>
+
+      {/* Rodapé — Configurações */}
+      <div className="py-3" style={{ borderTop: '1px solid var(--ac-border)' }}>
+        {bottomItems.map((item) => {
+          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors font-normal"
+              style={{
+                color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)',
+                background: isActive ? 'color-mix(in srgb, var(--ac-accent) 10%, transparent)' : 'transparent',
+              }}
+            >
+              <span style={{ color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)' }}>
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </Link>
+          )
+        })}
+      </div>
     </aside>
   )
 }
