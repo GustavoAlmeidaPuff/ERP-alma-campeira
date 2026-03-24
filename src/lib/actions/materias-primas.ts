@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { assertPermissao } from '@/lib/auth'
 import type { MateriaPrima } from '@/types'
 
 export async function getMatériasPrimas(): Promise<MateriaPrima[]> {
@@ -38,6 +39,7 @@ type MPInput = {
 }
 
 export async function criarMateriaPrima(input: MPInput) {
+  await assertPermissao('materias_primas', 'criar')
   const supabase = await createClient()
   const codigo = await gerarCodigoMP()
 
