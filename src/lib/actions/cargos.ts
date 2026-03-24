@@ -2,8 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { Cargo, CargoPermissao, ModuloKey } from '@/types'
+import type { Cargo, ModuloKey } from '@/types'
 import { MODULOS } from '@/types'
+import { permissoesVazias } from '@/lib/permissoes'
 
 export async function getCargos(): Promise<Cargo[]> {
   const supabase = await createClient()
@@ -93,18 +94,3 @@ export async function deletarCargo(id: string) {
   revalidatePath('/cargos')
 }
 
-export function permissoesVazias(): Record<ModuloKey, { ver: boolean; criar: boolean; editar: boolean; deletar: boolean }> {
-  return Object.fromEntries(
-    MODULOS.map((m) => [m.key, { ver: false, criar: false, editar: false, deletar: false }])
-  ) as Record<ModuloKey, { ver: boolean; criar: boolean; editar: boolean; deletar: boolean }>
-}
-
-export function permissoesFromArray(
-  arr: CargoPermissao[]
-): Record<ModuloKey, { ver: boolean; criar: boolean; editar: boolean; deletar: boolean }> {
-  const base = permissoesVazias()
-  for (const p of arr) {
-    base[p.modulo] = { ver: p.ver, criar: p.criar, editar: p.editar, deletar: p.deletar }
-  }
-  return base
-}
