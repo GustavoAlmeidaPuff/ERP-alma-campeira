@@ -2,9 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { assertPermissao } from '@/lib/auth'
 import type { Cargo, ModuloKey } from '@/types'
 import { MODULOS } from '@/types'
-import { permissoesVazias } from '@/lib/permissoes'
 
 export async function getCargos(): Promise<Cargo[]> {
   const supabase = await createClient()
@@ -25,6 +25,7 @@ type CargoInput = {
 }
 
 export async function criarCargo(input: CargoInput) {
+  await assertPermissao('cargos', 'criar')
   const supabase = await createClient()
 
   const { data: cargo, error } = await supabase
@@ -49,6 +50,7 @@ export async function criarCargo(input: CargoInput) {
 }
 
 export async function atualizarCargo(id: string, input: CargoInput) {
+  await assertPermissao('cargos', 'editar')
   const supabase = await createClient()
 
   const { error } = await supabase
@@ -76,6 +78,7 @@ export async function atualizarCargo(id: string, input: CargoInput) {
 }
 
 export async function deletarCargo(id: string) {
+  await assertPermissao('cargos', 'deletar')
   const supabase = await createClient()
 
   const { data: uso } = await supabase

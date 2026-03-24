@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { assertPermissao } from '@/lib/auth'
 import type { Usuario, PerfilUsuario } from '@/types'
 import type { PermMap } from '@/lib/permissoes'
 import { MODULOS } from '@/types'
@@ -63,6 +64,7 @@ export async function criarUsuario({
   nome: string
   cargo_id: string | null
 }) {
+  await assertPermissao('usuarios', 'criar')
   const admin = createAdminClient()
   const { data, error } = await admin.auth.admin.createUser({
     email,
@@ -98,6 +100,7 @@ export async function atualizarPerfil(
     permissoes: PermMap | null  // null = usar as do cargo (apaga customizações)
   }
 ) {
+  await assertPermissao('usuarios', 'editar')
   const supabase = await createClient()
 
   // Atualiza perfil
@@ -126,6 +129,7 @@ export async function atualizarPerfil(
 }
 
 export async function deletarUsuario(id: string) {
+  await assertPermissao('usuarios', 'deletar')
   const admin = createAdminClient()
   const { error } = await admin.auth.admin.deleteUser(id)
   if (error) throw new Error(error.message)
