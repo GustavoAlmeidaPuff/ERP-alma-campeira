@@ -55,7 +55,7 @@ export function UsuariosClient({ usuarios, cargos }: Props) {
   const [erroDelete, setErroDelete] = useState('')
   const [loadingDelete, setLoadingDelete] = useState(false)
 
-  const cargosSimples = cargos.map((c) => ({ id: c.id, nome: c.nome, cor: c.cor }))
+  const cargosSimples = cargos.map((c) => ({ id: c.id, nome: c.nome, cor: c.cor, permissoes: c.permissoes }))
 
   function abrirNovo() { setEditando(null); setModalAberto(true) }
   function abrirEditar(u: Usuario) { setEditando(u); setModalAberto(true) }
@@ -131,19 +131,7 @@ export function UsuariosClient({ usuarios, cargos }: Props) {
                   </td>
                   <td className="px-4 py-3" style={{ color: 'var(--ac-muted)' }}>{u.email}</td>
                   <td className="px-4 py-3">
-                    {u.cargo ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold"
-                        style={{
-                          color: u.cargo.cor,
-                          background: `${u.cargo.cor}18`,
-                          border: `1px solid ${u.cargo.cor}44`,
-                        }}>
-                        <span className="size-1.5 rounded-full" style={{ background: u.cargo.cor }} />
-                        {u.cargo.nome}
-                      </span>
-                    ) : (
-                      <span className="text-xs" style={{ color: 'var(--ac-muted)' }}>Sem cargo</span>
-                    )}
+                    <CargoBadge usuario={u} />
                   </td>
                   <td className="px-4 py-3 text-center">
                     {u.ativo ? (
