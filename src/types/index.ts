@@ -119,7 +119,8 @@ export type UsuarioPerfil = {
 export type Usuario = UsuarioPerfil & {
   email: string
   created_at: string
-  cargo?: Pick<Cargo, 'id' | 'nome' | 'cor'> | null
+  cargo?: Pick<Cargo, 'id' | 'nome' | 'cor' | 'permissoes'> | null
+  permissoes_customizadas: boolean  // true = tem overrides na tabela usuario_permissoes
 }
 
 export const CATEGORIAS_FACA = [

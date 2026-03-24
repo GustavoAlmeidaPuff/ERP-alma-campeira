@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Usuario, PerfilUsuario } from '@/types'
+import type { PermMap } from '@/lib/permissoes'
+import { MODULOS } from '@/types'
 
 export async function getUsuarios(): Promise<Usuario[]> {
   const admin = createAdminClient()
@@ -11,11 +13,14 @@ export async function getUsuarios(): Promise<Usuario[]> {
   if (authError) throw new Error(authError.message)
 
   const supabase = await createClient()
-  const { data: perfis } = await supabase
-    .from('usuarios_perfis')
-    .select('*, cargo:cargos(id, nome, cor)')
+  const [{ data: perfis }, { data: userPerms }] = await Promise.all([
+    supabase.from('usuarios_perfis').select('*, cargo:cargos(id, nome, cor, permissoes:cargo_permissoes(*))'),
+    supabase.from('usuario_permissoes').select('usuario_id'),
+  ])
 
   const perfisMap = new Map((perfis ?? []).map((p) => [p.id, p]))
+  // ids de usuários que têm permissões customizadas
+  const customIds = new Set((userPerms ?? []).map((p) => p.usuario_id))
 
   return authData.users.map((user) => {
     const perfil = perfisMap.get(user.id)
@@ -27,9 +32,27 @@ export async function getUsuarios(): Promise<Usuario[]> {
       ativo: perfil?.ativo ?? true,
       cargo_id: perfil?.cargo_id ?? null,
       cargo: perfil?.cargo ?? null,
+      permissoes_customizadas: customIds.has(user.id),
       created_at: user.created_at,
     }
   })
+}
+
+export async function getPermissoesUsuario(userId: string): Promise<PermMap | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('usuario_permissoes')
+    .select('*')
+    .eq('usuario_id', userId)
+
+  if (!data || data.length === 0) return null
+
+  const { permissoesVazias } = await import('@/lib/permissoes')
+  const base = permissoesVazias()
+  for (const p of data) {
+    base[p.modulo as keyof PermMap] = { ver: p.ver, criar: p.criar, editar: p.editar, deletar: p.deletar }
+  }
+  return base
 }
 
 export async function criarUsuario({
@@ -53,7 +76,7 @@ export async function criarUsuario({
   const { error: perfilError } = await supabase.from('usuarios_perfis').insert({
     id: data.user.id,
     nome: nome.trim(),
-    perfil: 'vendas', // valor legado, cargo_id é o que vale
+    perfil: 'vendas',
     ativo: true,
     cargo_id: cargo_id || null,
   })
@@ -63,13 +86,42 @@ export async function criarUsuario({
 
 export async function atualizarPerfil(
   id: string,
-  { nome, ativo, cargo_id }: { nome: string; ativo: boolean; cargo_id: string | null }
+  {
+    nome,
+    ativo,
+    cargo_id,
+    permissoes,
+  }: {
+    nome: string
+    ativo: boolean
+    cargo_id: string | null
+    permissoes: PermMap | null  // null = usar as do cargo (apaga customizações)
+  }
 ) {
   const supabase = await createClient()
+
+  // Atualiza perfil
   const { error } = await supabase
     .from('usuarios_perfis')
     .upsert({ id, nome: nome.trim(), perfil: 'vendas', ativo, cargo_id: cargo_id || null })
   if (error) throw new Error(error.message)
+
+  if (permissoes === null) {
+    // Remove permissões customizadas — vai usar as do cargo
+    await supabase.from('usuario_permissoes').delete().eq('usuario_id', id)
+  } else {
+    // Salva permissões customizadas
+    const rows = MODULOS.map((m) => ({
+      usuario_id: id,
+      modulo: m.key,
+      ...permissoes[m.key],
+    }))
+    const { error: permError } = await supabase
+      .from('usuario_permissoes')
+      .upsert(rows, { onConflict: 'usuario_id,modulo' })
+    if (permError) throw new Error(permError.message)
+  }
+
   revalidatePath('/usuarios')
 }
 

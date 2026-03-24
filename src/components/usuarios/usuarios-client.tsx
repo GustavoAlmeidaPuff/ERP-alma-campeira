@@ -7,6 +7,35 @@ import { UsuarioModal } from './usuario-modal'
 import { deletarUsuario } from '@/lib/actions/usuarios'
 import type { Usuario, Cargo } from '@/types'
 
+// Badge de cargo ou "Personalizado"
+function CargoBadge({ usuario }: { usuario: Usuario }) {
+  if (usuario.permissoes_customizadas) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold"
+        style={{ color: '#b45309', background: '#fef9c3', border: '1px solid #fde047' }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-3">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        Personalizado
+      </span>
+    )
+  }
+  if (usuario.cargo) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold"
+        style={{
+          color: usuario.cargo.cor,
+          background: `${usuario.cargo.cor}18`,
+          border: `1px solid ${usuario.cargo.cor}44`,
+        }}>
+        <span className="size-1.5 rounded-full" style={{ background: usuario.cargo.cor }} />
+        {usuario.cargo.nome}
+      </span>
+    )
+  }
+  return <span className="text-xs" style={{ color: 'var(--ac-muted)' }}>Sem cargo</span>
+}
+
 function getInitials(nome: string, email: string) {
   const base = nome || email.split('@')[0]
   const parts = base.split(/[\s._-]/)
@@ -16,7 +45,7 @@ function getInitials(nome: string, email: string) {
 
 type Props = {
   usuarios: Usuario[]
-  cargos: Cargo[]
+  cargos: Cargo[]  // completo — passa permissões para o modal
 }
 
 export function UsuariosClient({ usuarios, cargos }: Props) {
