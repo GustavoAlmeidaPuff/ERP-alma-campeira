@@ -1,0 +1,232 @@
+'use client'
+
+import { useState, useMemo } from 'react'
+import { Button } from '@/components/ui/button'
+import { Modal } from '@/components/ui/modal'
+import { FacaModal } from './faca-modal'
+import { deletarFaca } from '@/lib/actions/facas'
+import type { Faca } from '@/types'
+
+type Props = { facas: Faca[] }
+
+const badgeCategoria: Record<string, React.CSSProperties> = {
+  Gauchesca:  { color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a' },
+  Utilitária: { color: '#1e40af', background: '#dbeafe', border: '1px solid #bfdbfe' },
+  Decorativa: { color: '#6b21a8', background: '#f3e8ff', border: '1px solid #e9d5ff' },
+  Cozinha:    { color: '#065f46', background: '#d1fae5', border: '1px solid #a7f3d0' },
+  Esportiva:  { color: '#9f1239', background: '#ffe4e6', border: '1px solid #fecdd3' },
+  Outro:      { color: '#374151', background: '#f3f4f6', border: '1px solid #e5e7eb' },
+}
+
+export function FacasClient({ facas }: Props) {
+  const [modalAberto, setModalAberto] = useState(false)
+  const [editando, setEditando] = useState<Faca | null>(null)
+  const [deletando, setDeletando] = useState<Faca | null>(null)
+  const [erroDelete, setErroDelete] = useState('')
+  const [loadingDelete, setLoadingDelete] = useState(false)
+  const [busca, setBusca] = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState('')
+
+  const filtradas = useMemo(() => {
+    return facas.filter((f) => {
+      const matchBusca = !busca.trim() ||
+        f.nome.toLowerCase().includes(busca.toLowerCase()) ||
+        f.codigo.toLowerCase().includes(busca.toLowerCase())
+      const matchCategoria = !filtroCategoria || f.categoria === filtroCategoria
+      return matchBusca && matchCategoria
+    })
+  }, [facas, busca, filtroCategoria])
+
+  const categorias = useMemo(() => [...new Set(facas.map((f) => f.categoria))].sort(), [facas])
+
+  function abrirNovo() { setEditando(null); setModalAberto(true) }
+  function abrirEditar(f: Faca) { setEditando(f); setModalAberto(true) }
+
+  async function confirmarDelete() {
+    if (!deletando) return
+    setErroDelete('')
+    setLoadingDelete(true)
+    try {
+      await deletarFaca(deletando.id)
+      setDeletando(null)
+    } catch (e: unknown) {
+      setErroDelete(e instanceof Error ? e.message : 'Erro ao excluir.')
+    } finally {
+      setLoadingDelete(false)
+    }
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between px-8 py-6" style={{ borderBottom: '1px solid var(--ac-border)' }}>
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Facas</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--ac-muted)' }}>
+            {facas.length} {facas.length === 1 ? 'faca no catálogo' : 'facas no catálogo'}
+          </p>
+        </div>
+        <Button onClick={abrirNovo}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="size-4">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Nova faca
+        </Button>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex items-center gap-3 px-8 py-4">
+        <div className="relative flex-1 max-w-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+            className="absolute left-3 top-1/2 -translate-y-1/2 size-4 pointer-events-none"
+            style={{ color: 'var(--ac-muted)' }}
+          >
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Buscar por nome ou código..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm outline-none transition-all"
+            style={{ background: 'var(--ac-card)', border: '1px solid var(--ac-border)', color: 'var(--ac-text)' }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ac-accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--ac-accent) 20%, transparent)' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ac-border)'; e.currentTarget.style.boxShadow = 'none' }}
+          />
+        </div>
+        <select
+          value={filtroCategoria}
+          onChange={(e) => setFiltroCategoria(e.target.value)}
+          className="py-2.5 px-3 rounded-lg text-sm outline-none transition-all appearance-none"
+          style={{
+            background: 'var(--ac-card)', border: '1px solid var(--ac-border)', color: 'var(--ac-text)',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%236b7280' stroke-width='2' d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '16px', paddingRight: '32px',
+          }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ac-accent)' }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ac-border)' }}
+        >
+          <option value="">Todas as categorias</option>
+          {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
+      {/* Tabela */}
+      <div className="px-8 pb-8">
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--ac-border)' }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: 'var(--ac-bg)', borderBottom: '1px solid var(--ac-border)' }}>
+                <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--ac-muted)' }}>Código</th>
+                <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--ac-muted)' }}>Nome</th>
+                <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--ac-muted)' }}>Categoria</th>
+                <th className="text-right px-4 py-3 font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--ac-muted)' }}>Preço Venda</th>
+                <th className="text-right px-4 py-3 font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--ac-muted)' }}>Estoque</th>
+                <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--ac-muted)' }}>Disponível</th>
+                <th className="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtradas.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-12 text-sm" style={{ color: 'var(--ac-muted)' }}>
+                    {busca || filtroCategoria ? 'Nenhum resultado para esse filtro.' : 'Nenhuma faca cadastrada ainda.'}
+                  </td>
+                </tr>
+              )}
+              {filtradas.map((faca, i) => {
+                const catStyle = badgeCategoria[faca.categoria] ?? badgeCategoria['Outro']
+                const disponivel = faca.estoque_atual > 0
+                return (
+                  <tr
+                    key={faca.id}
+                    style={{ borderTop: i > 0 ? '1px solid var(--ac-border)' : undefined, background: 'var(--ac-card)' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--ac-bg)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--ac-card)')}
+                  >
+                    <td className="px-4 py-3 font-mono text-xs font-medium" style={{ color: 'var(--ac-muted)' }}>
+                      {faca.codigo}
+                    </td>
+                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--ac-text)' }}>
+                      {faca.nome}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style={catStyle}>
+                        {faca.categoria}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--ac-text)' }}>
+                      {faca.preco_venda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--ac-text)' }}>
+                      {faca.estoque_atual}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {disponivel ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+                          style={{ color: '#16a34a', background: '#dcfce7', border: '1px solid #bbf7d0' }}>
+                          Em estoque
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+                          style={{ color: '#dc2626', background: '#fee2e2', border: '1px solid #fca5a5' }}>
+                          Sem estoque
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => abrirEditar(faca)} className="p-1.5 rounded-lg transition-colors"
+                          style={{ color: 'var(--ac-muted)' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--ac-border)'; e.currentTarget.style.color = 'var(--ac-text)' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ac-muted)' }}
+                          title="Editar"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-4">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        <button onClick={() => { setDeletando(faca); setErroDelete('') }} className="p-1.5 rounded-lg transition-colors"
+                          style={{ color: 'var(--ac-muted)' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ac-muted)' }}
+                          title="Excluir"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-4">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <FacaModal open={modalAberto} onClose={() => setModalAberto(false)} editando={editando} />
+
+      <Modal open={!!deletando} onClose={() => setDeletando(null)} title="Excluir faca">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm" style={{ color: 'var(--ac-text)' }}>
+            Tem certeza que deseja excluir <strong>{deletando?.nome}</strong>? Esta ação não pode ser desfeita.
+          </p>
+          {erroDelete && (
+            <p className="text-sm rounded-lg px-3 py-2" style={{ color: '#dc2626', background: '#fee2e2' }}>{erroDelete}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setDeletando(null)}>Cancelar</Button>
+            <Button variant="danger" loading={loadingDelete} onClick={confirmarDelete}>Excluir</Button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  )
+}
