@@ -123,6 +123,57 @@ export type Usuario = UsuarioPerfil & {
   permissoes_customizadas: boolean  // true = tem overrides na tabela usuario_permissoes
 }
 
+// ============================================================
+// Clientes & Vendas
+// ============================================================
+export type TipoCliente = 'Lojista' | 'Revendedor' | 'Pessoa Física'
+export const TIPOS_CLIENTE: TipoCliente[] = ['Lojista', 'Revendedor', 'Pessoa Física']
+
+export type Cliente = {
+  id: string
+  nome: string
+  tipo: TipoCliente
+  telefone: string | null
+  email: string | null
+  cidade: string | null
+  estado: string | null
+  created_at: string
+}
+
+export type StatusPedido = 'orcamento' | 'confirmado' | 'em_producao' | 'entregue' | 'cancelado'
+
+export const STATUS_PEDIDO: Record<StatusPedido, { label: string; color: string; bg: string; border: string }> = {
+  orcamento:   { label: 'Orçamento',   color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
+  confirmado:  { label: 'Confirmado',  color: '#1d4ed8', bg: '#dbeafe', border: '#bfdbfe' },
+  em_producao: { label: 'Em Produção', color: '#b45309', bg: '#fef3c7', border: '#fde68a' },
+  entregue:    { label: 'Entregue',    color: '#15803d', bg: '#dcfce7', border: '#bbf7d0' },
+  cancelado:   { label: 'Cancelado',   color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+}
+
+export type PedidoItem = {
+  id: string
+  pedido_id: string
+  faca_id: string
+  quantidade: number
+  preco_unitario: number
+  subtotal: number
+  faca?: Pick<Faca, 'id' | 'codigo' | 'nome' | 'preco_venda'>
+}
+
+export type Pedido = {
+  id: string
+  codigo: string
+  cliente_id: string | null
+  data_pedido: string
+  status: StatusPedido
+  observacao: string | null
+  valor_total: number | null
+  entregue_at: string | null
+  created_at: string
+  cliente?: Pick<Cliente, 'id' | 'nome' | 'tipo'> | null
+  itens?: PedidoItem[]
+}
+
 export const CATEGORIAS_FACA = [
   'Gauchesca',
   'Utilitária',

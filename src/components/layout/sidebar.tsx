@@ -77,8 +77,8 @@ const sections: NavSection[] = [
   {
     label: 'Vendas',
     items: [
-      { href: '/vendas', label: 'Pedidos', available: false, icon: iconVendas },
-      { href: '/clientes', label: 'Clientes', available: false, icon: iconClientes },
+      { href: '/vendas', label: 'Vendas', available: true, icon: iconVendas },
+      { href: '/clientes', label: 'Clientes', available: true, icon: iconClientes },
     ],
   },
   {
