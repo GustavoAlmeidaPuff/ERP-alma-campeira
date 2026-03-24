@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 type NavItem = {
   href: string
@@ -169,25 +171,39 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Rodapé */}
-      <div className="py-2" style={{ borderTop: '1px solid var(--ac-border)' }}>
-        {bottomItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 px-4 py-2 mx-2 rounded-lg text-sm transition-colors"
-              style={{
-                color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)',
-                background: isActive ? 'color-mix(in srgb, var(--ac-accent) 10%, transparent)' : 'transparent',
-              }}
-            >
-              <span style={{ color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)' }}>{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          )
-        })}
+      {/* Rodapé — usuário logado */}
+      <div className="px-3 py-3" style={{ borderTop: '1px solid var(--ac-border)' }}>
+        <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg" style={{ background: 'color-mix(in srgb, var(--ac-muted) 8%, transparent)' }}>
+          {/* Avatar com iniciais */}
+          <div
+            className="size-7 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
+            style={{ background: 'var(--ac-accent)', color: '#111827' }}
+          >
+            {userEmail ? getInitials(userEmail) : '…'}
+          </div>
+
+          {/* E-mail truncado */}
+          <span
+            className="flex-1 text-xs truncate"
+            style={{ color: 'var(--ac-muted)' }}
+            title={userEmail ?? ''}
+          >
+            {userEmail ?? 'Carregando...'}
+          </span>
+
+          {/* Engrenagem → configurações */}
+          <Link
+            href="/configuracoes"
+            className="flex-shrink-0 p-1 rounded-md transition-colors hover:opacity-80"
+            style={{
+              color: pathname.startsWith('/configuracoes') ? 'var(--ac-accent)' : 'var(--ac-muted)',
+              background: pathname.startsWith('/configuracoes') ? 'color-mix(in srgb, var(--ac-accent) 12%, transparent)' : 'transparent',
+            }}
+            title="Configurações"
+          >
+            {iconGear}
+          </Link>
+        </div>
       </div>
     </aside>
   )
