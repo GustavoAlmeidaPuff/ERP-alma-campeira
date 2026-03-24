@@ -57,6 +57,7 @@ export async function criarMateriaPrima(input: MPInput) {
 }
 
 export async function atualizarMateriaPrima(id: string, input: MPInput) {
+  await assertPermissao('materias_primas', 'editar')
   const supabase = await createClient()
 
   const { error } = await supabase
@@ -75,6 +76,7 @@ export async function atualizarMateriaPrima(id: string, input: MPInput) {
 }
 
 export async function deletarMateriaPrima(id: string) {
+  await assertPermissao('materias_primas', 'deletar')
   const supabase = await createClient()
 
   // Verificar se está sendo usada em alguma faca

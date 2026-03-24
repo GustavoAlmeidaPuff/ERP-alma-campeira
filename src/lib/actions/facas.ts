@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { assertPermissao } from '@/lib/auth'
 import type { Faca } from '@/types'
 
 export async function getFacas(): Promise<Faca[]> {
@@ -37,6 +38,7 @@ type FacaInput = {
 }
 
 export async function criarFaca(input: FacaInput) {
+  await assertPermissao('facas', 'criar')
   const supabase = await createClient()
   const codigo = await gerarCodigoFaca()
 
