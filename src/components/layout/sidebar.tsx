@@ -128,16 +128,43 @@ export function Sidebar() {
   const clickedLabelRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && pendingHref && clickStartedAtRef.current) {
-      const ms = Math.round(performance.now() - clickStartedAtRef.current)
-      const pageName = clickedLabelRef.current ?? pendingHref
-      console.log(`[DEV][NAV] ${pageName} carregou em ${ms}ms`)
+    if (!pendingHref || pathname !== pendingHref) return
+
+    const startedAt = clickStartedAtRef.current
+    const pageName = clickedLabelRef.current ?? pendingHref
+    const started = performance.now()
+    const timeoutMs = 15000
+
+    const finish = () => {
+      setPendingHref(null)
+      clickStartedAtRef.current = null
+      clickedLabelRef.current = null
     }
 
-    setPendingHref(null)
-    clickStartedAtRef.current = null
-    clickedLabelRef.current = null
-  }, [pathname])
+    const tick = () => {
+      const content = document.querySelector('main')
+      const pageHeading = Array.from(document.querySelectorAll('h1')).find(
+        (h1) => h1.textContent?.trim() === pageName
+      )
+      if (content && pageHeading) {
+        if (process.env.NODE_ENV === 'development' && startedAt) {
+          const ms = Math.round(performance.now() - startedAt)
+          console.log(`[DEV][NAV] ${pageName} conteúdo visível em ${ms}ms`)
+        }
+        finish()
+        return
+      }
+
+      if (performance.now() - started > timeoutMs) {
+        finish()
+        return
+      }
+
+      requestAnimationFrame(tick)
+    }
+
+    requestAnimationFrame(tick)
+  }, [pathname, pendingHref])
 
   useEffect(() => {
     const supabase = createClient()
