@@ -24,9 +24,10 @@ const iconMP = (
 
 const iconFaca = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="size-[18px]">
-    <path d="M14 4c1.6 2.3 2.1 5 1.2 7.2l-1 2.4-3.8-3.8 2.4-1c2.2-.9 4.9-.4 7.2 1.2" />
-    <path d="M10.6 9.8 4 16.4" />
-    <path d="M3 17.4 6.6 21 10.2 17.4 6.6 13.8 3 17.4Z" />
+    <path d="M3 22 L7 18" />
+    <path d="M6 14 L10 18" />
+    <path d="M8 16 L20 4" />
+    <path d="M9 17 C12 14 17 9 20 4 L21 5" />
   </svg>
 )
 

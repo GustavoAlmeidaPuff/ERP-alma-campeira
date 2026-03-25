@@ -37,11 +37,21 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-5" style={{ borderBottom: '1px solid var(--ac-border)' }}>
-        <div className="size-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--ac-accent)' }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth={2} className="size-4">
-            <path d="M14.5 10.5 3 22" /><path d="M14.5 10.5 21 4l-7 7" /><path d="M10.5 14.5 3 22" />
-          </svg>
-        </div>
+        <div
+          className="size-8 flex-shrink-0"
+          style={{
+            backgroundColor: 'var(--ac-accent)',
+            maskImage: 'url(/images/logo.png)',
+            maskSize: 'contain',
+            maskRepeat: 'no-repeat',
+            maskPosition: 'center',
+            WebkitMaskImage: 'url(/images/logo.png)',
+            WebkitMaskSize: 'contain',
+            WebkitMaskRepeat: 'no-repeat',
+            WebkitMaskPosition: 'center',
+          }}
+          aria-hidden
+        />
         <span className="font-bold text-sm" style={{ color: 'var(--ac-text)' }}>Alma Campeira</span>
       </div>
 
