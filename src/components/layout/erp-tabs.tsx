@@ -1,10 +1,22 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
+
 import { getRouteIcon, getRouteLabel, normalizePath } from '@/components/layout/erp-navigation'
+import type { ReactNode } from 'react'
+
+import { getErpTabData, type ErpTabData } from '@/lib/actions/erp-tab-data'
+
+import { MPClient } from '@/components/materias-primas/mp-client'
+import { FacasClient } from '@/components/facas/facas-client'
+import { FornecedoresClient } from '@/components/fornecedores/fornecedores-client'
+import { OcClient } from '@/components/ordens-compra/oc-client'
+import { VendasClient } from '@/components/vendas/vendas-client'
+import { ClientesClient } from '@/components/clientes/clientes-client'
+import { UsuariosClient } from '@/components/usuarios/usuarios-client'
+import { CargosClient } from '@/components/cargos/cargos-client'
+import { ConfiguracoesClient } from '@/components/configuracoes/configuracoes-client'
 
 type OpenTab = {
   href: string
@@ -12,20 +24,13 @@ type OpenTab = {
 }
 
 const STORAGE_KEY = 'erp_open_tabs_v1'
-const RECENTS_KEY = 'erp_open_tabs_recents_v1'
+const ACTIVE_KEY = 'erp_active_tab_v1'
 
-type ErpTabsProps = {
-  children: ReactNode
-}
-
-function serializePath(pathname: string, search: string) {
-  return search ? `${pathname}?${search}` : pathname
-}
+const LOG = process.env.NODE_ENV === 'development'
 
 function normalizeHref(href: string) {
-  const [pathOnly, query = ''] = href.split('?')
-  const normalizedPath = normalizePath(pathOnly || '/')
-  return query ? `${normalizedPath}?${query}` : normalizedPath
+  const [pathOnly] = href.split('?')
+  return normalizePath(pathOnly || '/')
 }
 
 function parseStoredTabs(value: string | null): OpenTab[] {
@@ -41,171 +46,132 @@ function parseStoredTabs(value: string | null): OpenTab[] {
   }
 }
 
-export function ErpTabs({ children }: ErpTabsProps) {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const [tabs, setTabs] = useState<OpenTab[]>([])
-  const [hydrated, setHydrated] = useState(false)
-  const dragHrefRef = useRef<string | null>(null)
-  const ignoreClickRef = useRef(false)
-  const dragStartedRef = useRef(false)
-  const holdTimeoutRef = useRef<number | null>(null)
-  const [recentHrefs, setRecentHrefs] = useState<string[]>([])
-  const contentCacheRef = useRef<Map<string, ReactNode>>(new Map())
-  const latestChildrenRef = useRef<ReactNode>(null)
+type ErpTabsContextValue = {
+  openTabs: OpenTab[]
+  activeHref: string
+  openTab: (href: string) => void
+  selectTab: (href: string) => void
+  closeTab: (href: string) => void
+  reorderTabs: (fromHref: string, toHref: string) => void
+}
 
-  const currentHref = useMemo(() => {
-    const query = searchParams?.toString() ?? ''
-    return normalizeHref(serializePath(pathname, query))
-  }, [pathname, searchParams])
+const ErpTabsContext = createContext<ErpTabsContextValue | null>(null)
 
-  const currentLabel = useMemo(() => getRouteLabel(pathname), [pathname])
+export function useErpTabs() {
+  const ctx = useContext(ErpTabsContext)
+  if (!ctx) throw new Error('useErpTabs deve ser usado dentro de ErpTabsProvider.')
+  return ctx
+}
 
+function TabSkeleton({ title }: { title: string }) {
+  return (
+    <div className="p-8 space-y-5 animate-pulse">
+      <div className="h-7 w-44 rounded-lg" style={{ background: 'var(--ac-border)' }} />
+      <div className="h-9 w-32 rounded-lg" style={{ background: 'var(--ac-border)' }} />
+      <div className="h-9 w-72 rounded-lg" style={{ background: 'var(--ac-border)' }} />
+      <div className="text-xs" style={{ color: 'var(--ac-muted)' }}>
+        Carregando {title}...
+      </div>
+    </div>
+  )
+}
+
+function TabPane({ href, active }: { href: string; active: boolean }) {
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [data, setData] = useState<ErpTabData | null>(null)
+  const [errMsg, setErrMsg] = useState<string>('')
+
+  const mountedRef = useRef(false)
   useEffect(() => {
-    const stored = parseStoredTabs(localStorage.getItem(STORAGE_KEY))
-    setTabs(stored)
-
-    const recentsRaw = localStorage.getItem(RECENTS_KEY)
-    if (recentsRaw) {
-      try {
-        const parsed = JSON.parse(recentsRaw)
-        if (Array.isArray(parsed)) {
-          setRecentHrefs(parsed.filter((x) => typeof x === 'string').map((x) => normalizeHref(x)))
-        }
-      } catch {
-        // ignore
-      }
-    }
-    setHydrated(true)
-  }, [])
-
-  useEffect(() => {
+    if (LOG) console.log('[TABS] TabPane mounted', { href, active })
     return () => {
-      if (holdTimeoutRef.current) window.clearTimeout(holdTimeoutRef.current)
-      holdTimeoutRef.current = null
+      if (LOG) console.log('[TABS] TabPane unmounted', { href })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  useEffect(() => {
-    if (!hydrated) return
-
-    // Atualiza recência para pré-carregar retorno instantâneo.
-    setRecentHrefs((prev) => {
-      const next = prev.filter((h) => h !== currentHref)
-      next.push(currentHref)
-      const trimmed = next.slice(-6)
-      localStorage.setItem(RECENTS_KEY, JSON.stringify(trimmed))
-      return trimmed
-    })
-
-    setTabs((prevTabs) => {
-      const existingIndex = prevTabs.findIndex((tab) => tab.href === currentHref)
-      if (existingIndex >= 0) {
-        // A aba já existe: não muda a ordem ao ativar (só atualiza o label se tiver mudado).
-        const existing = prevTabs[existingIndex]
-        if (existing.label === currentLabel) return prevTabs
-        const nextTabs = [...prevTabs]
-        nextTabs[existingIndex] = { ...existing, label: currentLabel }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextTabs))
-        return nextTabs
-      }
-
-      // Aba nova: adiciona no final (por padrão). A ordem depois só muda via drag-and-drop.
-      const nextTabs = [...prevTabs, { href: currentHref, label: currentLabel }]
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextTabs))
-      return nextTabs
-    })
-  }, [currentHref, currentLabel])
-
-  useEffect(() => {
-    // Prefetch das últimas abas ativadas (mantém o retorno instantâneo).
-    // Limite já é feito pelo slice em recentHrefs.
-    recentHrefs.forEach((href) => router.prefetch(href))
-  }, [router, recentHrefs])
-
-  useEffect(() => {
-    // Garante que a aba atual sempre esteja pré-carregada.
-    router.prefetch(currentHref)
-  }, [router, currentHref])
-
-  const closeTab = (tabHref: string) => {
-    const normalizedHref = normalizeHref(tabHref)
-    if (tabs.length === 1 && normalizedHref === currentHref) return
-
-    contentCacheRef.current.delete(normalizedHref)
-
-    let nextTabsAfterClose: OpenTab[] = []
-    setTabs((prevTabs) => {
-      const nextTabs = prevTabs.filter((tab) => tab.href !== normalizedHref)
-      nextTabsAfterClose = nextTabs
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextTabs))
-      return nextTabs
-    })
-
-    if (normalizedHref !== currentHref) return
-
-    const fallbackTab = nextTabsAfterClose[nextTabsAfterClose.length - 1]
-    if (fallbackTab) {
-      router.push(fallbackTab.href)
-      return
-    }
-  }
-
-  // Keep-alive: só armazenamos `children` quando o conteúdo da página indica que terminou
-  // (sem gravar o fallback/skeleton na cache).
-  useEffect(() => {
-    latestChildrenRef.current = children
-  }, [children])
 
   useEffect(() => {
     let cancelled = false
-    const label = currentLabel
-    const href = currentHref
-    const startedAt = performance.now()
-    const timeoutMs = 15000
+    async function run() {
+      try {
+        if (LOG) console.log('[TABS] fetch start', { href, active })
+        setStatus('loading')
+        setData(null)
+        setErrMsg('')
 
-    const tick = () => {
-      if (cancelled) return
-      const el = document.querySelector(`[data-nav-content-ready="${label}"]`) as HTMLElement | null
-      const height = el ? el.getBoundingClientRect().height : 0
-      if (height > 0 && latestChildrenRef.current) {
-        contentCacheRef.current.set(href, latestChildrenRef.current)
-        return
+        const d = await getErpTabData(href)
+        if (cancelled) return
+        setData(d)
+        setStatus('ready')
+        if (LOG) console.log('[TABS] fetch success', { href, kind: d.kind })
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Erro ao carregar.'
+        if (cancelled) return
+        setErrMsg(msg)
+        setStatus('error')
+        if (LOG) console.log('[TABS] fetch error', { href, msg })
       }
-
-      if (performance.now() - startedAt > timeoutMs) return
-      requestAnimationFrame(tick)
     }
 
-    requestAnimationFrame(tick)
+    run()
 
     return () => {
       cancelled = true
     }
-  }, [currentHref, currentLabel])
+  }, [href])
 
-  const reorderTabs = (fromHref: string, toHref: string) => {
-    const fromNorm = normalizeHref(fromHref)
-    const toNorm = normalizeHref(toHref)
-    if (fromNorm === toNorm) return
-    setTabs((prevTabs) => {
-      const fromIndex = prevTabs.findIndex((t) => t.href === fromNorm)
-      const toIndex = prevTabs.findIndex((t) => t.href === toNorm)
-      if (fromIndex < 0 || toIndex < 0) return prevTabs
-
-      const nextTabs = [...prevTabs]
-      const [moved] = nextTabs.splice(fromIndex, 1)
-      nextTabs.splice(toIndex, 0, moved)
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextTabs))
-      return nextTabs
-    })
+  if (status === 'loading') return <TabSkeleton title={href} />
+  if (status === 'error') {
+    return (
+      <div className="p-8" style={{ color: '#dc2626' }}>
+        {errMsg}
+      </div>
+    )
   }
+
+  if (!data) return null
+
+  // Permite renderizar componente e manter state interno enquanto a aba estiver aberta.
+  switch (data.kind) {
+    case 'materias-primas':
+      return <MPClient materiasPrimas={data.materiasPrimas} fornecedores={data.fornecedores} perm={data.perm} />
+    case 'facas':
+      return <FacasClient facas={data.facas} categorias={data.categorias} perm={data.perm} />
+    case 'fornecedores':
+      return <FornecedoresClient fornecedores={data.fornecedores} perm={data.perm} />
+    case 'ordens-compra':
+      return <OcClient fila={data.fila} ordens={[]} perm={data.perm} />
+    case 'vendas':
+      return <VendasClient pedidos={data.pedidos} clientes={data.clientes} facas={data.facas} perm={data.perm} />
+    case 'clientes':
+      return <ClientesClient clientes={data.clientes} perm={data.perm} />
+    case 'usuarios':
+      return <UsuariosClient usuarios={data.usuarios} cargos={data.cargos} perm={data.perm} />
+    case 'cargos':
+      return <CargosClient cargos={data.cargos} perm={data.perm} />
+    case 'configuracoes':
+      return <ConfiguracoesClient categorias={data.categorias} />
+    default:
+      return null
+  }
+}
+
+function ErpTabsContent() {
+  const { openTabs, activeHref, selectTab, closeTab, reorderTabs } = useErpTabs()
+  const pathname = usePathname()
+
+  useEffect(() => {
+    if (LOG) console.log('[TABS] active changed', { activeHref, pathname })
+  }, [activeHref, pathname])
+
+  const dragHrefRef = useRef<string | null>(null)
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => setHydrated(true), [])
 
   return (
     <div>
-      {tabs.length > 0 && (
+      {openTabs.length > 0 && (
         <div
           className="sticky top-0 z-20 w-full border-b"
           style={{
@@ -214,18 +180,15 @@ export function ErpTabs({ children }: ErpTabsProps) {
           }}
         >
           <div className="flex items-center gap-1 overflow-x-auto px-2 py-2 sm:px-4">
-            {tabs.map((tab) => {
-              const isActive = tab.href === currentHref
+            {openTabs.map((tab) => {
+              const isActive = tab.href === activeHref
               const tabIcon = getRouteIcon(tab.href)
               return (
                 <div
                   key={tab.href}
                   className="flex min-w-0 flex-shrink-0 items-center gap-2 rounded-md border pl-3 pr-1 py-1.5"
                   draggable
-                  onDragOver={(e) => {
-                    // Necessário para o drop ser aceito.
-                    e.preventDefault()
-                  }}
+                  onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault()
                     const fromHref = e.dataTransfer.getData('text/plain') || dragHrefRef.current
@@ -233,42 +196,9 @@ export function ErpTabs({ children }: ErpTabsProps) {
                     if (fromHref) reorderTabs(fromHref, tab.href)
                   }}
                   onDragStart={(e) => {
-                    dragStartedRef.current = true
-                    ignoreClickRef.current = true
                     dragHrefRef.current = tab.href
                     e.dataTransfer.setData('text/plain', tab.href)
                     e.dataTransfer.effectAllowed = 'move'
-                  }}
-                  onDragEnd={() => {
-                    // Mantém `ignoreClickRef` até o próximo pointerdown para impedir navegação
-                    // do clique "fantasma" que pode ocorrer após drop.
-                    dragStartedRef.current = false
-                    window.setTimeout(() => {
-                      ignoreClickRef.current = false
-                    }, 200)
-                  }}
-                  onPointerDown={(e) => {
-                    if (e.button !== 0) return
-                    ignoreClickRef.current = false
-                    if (holdTimeoutRef.current) window.clearTimeout(holdTimeoutRef.current)
-                    // Se o usuário "segurar", tratamos como intenção de drag and drop.
-                    // Assim, ao soltar, não navegamos acidentalmente.
-                    holdTimeoutRef.current = window.setTimeout(() => {
-                      ignoreClickRef.current = true
-                    }, 250)
-                  }}
-                  onPointerUp={() => {
-                    if (holdTimeoutRef.current) window.clearTimeout(holdTimeoutRef.current)
-                    holdTimeoutRef.current = null
-                  }}
-                  onClickCapture={(e) => {
-                    if (ignoreClickRef.current || dragStartedRef.current) {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      window.setTimeout(() => {
-                        ignoreClickRef.current = false
-                      }, 0)
-                    }
                   }}
                   style={{
                     borderColor: isActive ? 'var(--ac-accent)' : 'var(--ac-border)',
@@ -277,39 +207,25 @@ export function ErpTabs({ children }: ErpTabsProps) {
                       : 'color-mix(in srgb, var(--ac-sidebar) 45%, transparent)',
                   }}
                 >
-                  <Link
-                    href={tab.href}
-                    className="max-w-[180px] truncate text-xs sm:max-w-[220px] sm:text-sm"
+                  <button
+                    type="button"
+                    onClick={() => selectTab(tab.href)}
+                    className="flex min-w-0 items-center gap-2"
                     style={{ color: isActive ? 'var(--ac-accent)' : 'var(--ac-text)' }}
                     title={tab.label}
                   >
-                    <span className="sr-only">{tab.label}</span>
-                    <span className="inline-flex items-center gap-2">
-                      {tabIcon ? (
-                        <span
-                          className="flex-shrink-0"
-                          style={{
-                            color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)',
-                          }}
-                        >
-                          {tabIcon}
-                        </span>
-                      ) : null}
-                      <span className="truncate">{tab.label}</span>
-                    </span>
-                  </Link>
+                    {tabIcon ? (
+                      <span className="flex-shrink-0" style={{ color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)' }}>
+                        {tabIcon}
+                      </span>
+                    ) : null}
+                    <span className="truncate max-w-[180px] sm:max-w-[220px] text-xs sm:text-sm">{tab.label}</span>
+                  </button>
+
                   <button
                     type="button"
                     aria-label={`Fechar aba ${tab.label}`}
                     onClick={() => closeTab(tab.href)}
-                    onPointerDown={(e) => {
-                      // Não deixar o close iniciar o "hold-to-drag".
-                      e.stopPropagation()
-                      ignoreClickRef.current = false
-                      dragStartedRef.current = false
-                      if (holdTimeoutRef.current) window.clearTimeout(holdTimeoutRef.current)
-                      holdTimeoutRef.current = null
-                    }}
                     className="rounded p-1 transition-colors hover:opacity-80"
                     style={{ color: 'var(--ac-muted)' }}
                   >
@@ -325,19 +241,138 @@ export function ErpTabs({ children }: ErpTabsProps) {
         </div>
       )}
 
-      {/* Conteúdo das abas: só alterna visibilidade, não desmonta */}
       <div>
-        {(tabs.length > 0 ? tabs : [{ href: currentHref, label: currentLabel }]).map((tab) => {
-          const active = tab.href === currentHref
-          const cached = contentCacheRef.current.get(tab.href)
-          const node = cached ?? (active ? children : null)
-          return (
-            <div key={tab.href} style={{ display: active ? 'block' : 'none' }}>
-              {node}
-            </div>
-          )
-        })}
+        {openTabs.map((tab) => (
+          <div key={tab.href} style={{ display: tab.href === activeHref ? 'block' : 'none' }}>
+            {/* Manter montado: não desmontamos o componente, só escondemos. */}
+            {hydrated ? <TabPane href={tab.href} active={tab.href === activeHref} /> : null}
+          </div>
+        ))}
       </div>
     </div>
   )
+}
+
+type ErpTabsProviderProps = {
+  children: ReactNode
+}
+
+export function ErpTabsProvider({ children }: ErpTabsProviderProps) {
+  const pathname = usePathname()
+  const initialHref = useMemo(() => normalizeHref(pathname), [pathname])
+  const initialLabel = useMemo(() => getRouteLabel(initialHref), [initialHref])
+
+  const [openTabs, setOpenTabs] = useState<OpenTab[]>([{ href: initialHref, label: initialLabel }])
+  const [activeHref, setActiveHref] = useState<string>(initialHref)
+
+  useEffect(() => {
+    try {
+      const storedTabs = parseStoredTabs(localStorage.getItem(STORAGE_KEY))
+      const storedActive = localStorage.getItem(ACTIVE_KEY)
+
+      if (storedTabs.length > 0) {
+        const normalized = storedTabs.map((t) => ({ ...t, href: normalizeHref(t.href), label: t.label }))
+        setOpenTabs(normalized)
+        const normalizedActive = storedActive ? normalizeHref(storedActive) : normalized[0]?.href
+        if (normalizedActive) setActiveHref(normalizedActive)
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const persist = useCallback((tabs: OpenTab[], active: string) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tabs))
+    localStorage.setItem(ACTIVE_KEY, active)
+  }, [])
+
+  const openTab = useCallback(
+    (href: string) => {
+      const normalizedHref = normalizeHref(href)
+      const label = getRouteLabel(normalizedHref)
+
+      setOpenTabs((prev) => {
+        const exists = prev.some((t) => t.href === normalizedHref)
+        const next = exists ? prev : [...prev, { href: normalizedHref, label }]
+        if (LOG) console.log('[TABS] openTab', { href: normalizedHref, nextLen: next.length })
+        persist(next, normalizedHref)
+        setActiveHref(normalizedHref)
+        return next
+      })
+    },
+    [persist]
+  )
+
+  const selectTab = useCallback(
+    (href: string) => {
+      const normalizedHref = normalizeHref(href)
+      setActiveHref(normalizedHref)
+      if (LOG) console.log('[TABS] selectTab', { href: normalizedHref })
+      persist(openTabs, normalizedHref)
+      if (!openTabs.some((t) => t.href === normalizedHref)) {
+        // Fallback: se abriu via UI externa, garante que a aba exista.
+        const label = getRouteLabel(normalizedHref)
+        setOpenTabs((prev) => [...prev, { href: normalizedHref, label }])
+      }
+    },
+    [openTabs, persist]
+  )
+
+  const closeTab = useCallback(
+    (href: string) => {
+      const normalizedHref = normalizeHref(href)
+      setOpenTabs((prev) => {
+        const next = prev.filter((t) => t.href !== normalizedHref)
+        const remaining = next
+        const nextActive = remaining[remaining.length - 1]?.href ?? ''
+        if (LOG) console.log('[TABS] closeTab', { href: normalizedHref, remaining: remaining.length })
+        if (nextActive) setActiveHref(nextActive)
+        persist(remaining.length ? remaining : prev, nextActive || prev[0]?.href || normalizedHref)
+        // Se ficar sem abas, mantemos ao menos uma (o comportamento mais seguro).
+        return remaining.length ? remaining : prev
+      })
+    },
+    [persist]
+  )
+
+  const reorderTabs = useCallback(
+    (fromHref: string, toHref: string) => {
+      const fromNorm = normalizeHref(fromHref)
+      const toNorm = normalizeHref(toHref)
+      if (fromNorm === toNorm) return
+
+      setOpenTabs((prev) => {
+        const fromIndex = prev.findIndex((t) => t.href === fromNorm)
+        const toIndex = prev.findIndex((t) => t.href === toNorm)
+        if (fromIndex < 0 || toIndex < 0) return prev
+
+        const next = [...prev]
+        const [moved] = next.splice(fromIndex, 1)
+        next.splice(toIndex, 0, moved)
+
+        if (LOG) console.log('[TABS] reorderTabs', { fromNorm, toNorm })
+        persist(next, activeHref)
+        return next
+      })
+    },
+    [activeHref, persist]
+  )
+
+  const value: ErpTabsContextValue = useMemo(
+    () => ({
+      openTabs,
+      activeHref,
+      openTab,
+      selectTab,
+      closeTab,
+      reorderTabs,
+    }),
+    [openTabs, activeHref, openTab, selectTab, closeTab, reorderTabs]
+  )
+
+  return <ErpTabsContext.Provider value={value}>{children}</ErpTabsContext.Provider>
+}
+
+export function ErpTabs() {
+  return <ErpTabsContent />
 }

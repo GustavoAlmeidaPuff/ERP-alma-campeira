@@ -1,10 +1,9 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { sections } from '@/components/layout/erp-navigation'
+import { useErpTabs } from '@/components/layout/erp-tabs'
 
 const iconGear = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[16px] flex-shrink-0">
@@ -21,54 +20,8 @@ function getInitials(email: string) {
 }
 
 export function Sidebar() {
-  const pathname = usePathname()
-  const router = useRouter()
+  const { openTab, activeHref } = useErpTabs()
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const clickedHrefRef = useRef<string | null>(null)
-  const clickStartedAtRef = useRef<number | null>(null)
-  const clickedLabelRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    const clickedHref = clickedHrefRef.current
-    if (!clickedHref || pathname !== clickedHref) return
-
-    const startedAt = clickStartedAtRef.current
-    const pageName = clickedLabelRef.current ?? clickedHref
-    const started = performance.now()
-    const timeoutMs = 15000
-
-    const finish = () => {
-      clickedHrefRef.current = null
-      clickStartedAtRef.current = null
-      clickedLabelRef.current = null
-    }
-
-    const tick = () => {
-      const content = document.querySelector('main')
-      const contentReady = Array.from(document.querySelectorAll('[data-nav-content-ready]')).find(
-        (el) => el.getAttribute('data-nav-content-ready') === pageName
-      )
-      const contentReadyVisible = Boolean(contentReady && contentReady.getBoundingClientRect().height > 0)
-
-      if (content && contentReadyVisible) {
-        if (process.env.NODE_ENV === 'development' && startedAt) {
-          const ms = Math.round(performance.now() - startedAt)
-          console.log(`[DEV][NAV] ${pageName} conteúdo visível em ${ms}ms`)
-        }
-        finish()
-        return
-      }
-
-      if (performance.now() - started > timeoutMs) {
-        finish()
-        return
-      }
-
-      requestAnimationFrame(tick)
-    }
-
-    requestAnimationFrame(tick)
-  }, [pathname])
 
   useEffect(() => {
     const supabase = createClient()
@@ -76,11 +29,6 @@ export function Sidebar() {
       setUserEmail(data.user?.email ?? null)
     })
   }, [])
-
-  useEffect(() => {
-    const criticalRoutes = ['/vendas', '/clientes', '/usuarios', '/cargos']
-    criticalRoutes.forEach((route) => router.prefetch(route))
-  }, [router])
 
   return (
     <aside
@@ -110,16 +58,14 @@ export function Sidebar() {
             </p>
             {/* Itens */}
             {section.items.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+              const isActive = activeHref === item.href || activeHref.startsWith(item.href + '/')
               return (
-                <Link
+                <button
                   key={item.href}
-                  href={item.available ? item.href : '#'}
+                  type="button"
                   onClick={() => {
-                    if (!item.available || isActive) return
-                    clickStartedAtRef.current = performance.now()
-                    clickedLabelRef.current = item.label
-                    clickedHrefRef.current = item.href
+                    if (!item.available) return
+                    openTab(item.href)
                   }}
                   className={[
                     'flex items-center gap-3 px-4 py-2 mx-2 rounded-lg text-sm transition-colors',
@@ -138,7 +84,7 @@ export function Sidebar() {
                 >
                   <span style={{ color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)' }}>{item.icon}</span>
                   <span>{item.label}</span>
-                </Link>
+                </button>
               )
             })}
           </div>
@@ -166,23 +112,20 @@ export function Sidebar() {
           </span>
 
           {/* Engrenagem → configurações */}
-          <Link
-            href="/configuracoes"
-            onClick={() => {
-              if (pathname.startsWith('/configuracoes')) return
-              clickStartedAtRef.current = performance.now()
-              clickedLabelRef.current = 'Configurações'
-              clickedHrefRef.current = '/configuracoes'
-            }}
+          <button
+            type="button"
             className="flex-shrink-0 p-1 rounded-md transition-colors hover:opacity-80"
             style={{
-              color: pathname.startsWith('/configuracoes') ? 'var(--ac-accent)' : 'var(--ac-muted)',
-              background: pathname.startsWith('/configuracoes') ? 'color-mix(in srgb, var(--ac-accent) 12%, transparent)' : 'transparent',
+              color: activeHref.startsWith('/configuracoes') ? 'var(--ac-accent)' : 'var(--ac-muted)',
+              background: activeHref.startsWith('/configuracoes')
+                ? 'color-mix(in srgb, var(--ac-accent) 12%, transparent)'
+                : 'transparent',
             }}
             title="Configurações"
+            onClick={() => openTab('/configuracoes')}
           >
             {iconGear}
-          </Link>
+          </button>
         </div>
       </div>
     </aside>

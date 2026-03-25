@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
-import { ErpTabs } from '@/components/layout/erp-tabs'
+import { ErpTabs, ErpTabsProvider } from '@/components/layout/erp-tabs'
 import { getAuthenticatedUser } from '@/lib/auth'
 
 export default async function ErpLayout({ children }: { children: React.ReactNode }) {
@@ -10,13 +10,12 @@ export default async function ErpLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--ac-bg)' }}>
-      <Sidebar />
-      <main
-        style={{ marginLeft: 'var(--ac-sidebar-w)' }}
-        className="min-h-screen"
-      >
-        <ErpTabs>{children}</ErpTabs>
-      </main>
+      <ErpTabsProvider>
+        <Sidebar />
+        <main style={{ marginLeft: 'var(--ac-sidebar-w)' }} className="min-h-screen">
+          <ErpTabs />
+        </main>
+      </ErpTabsProvider>
     </div>
   )
 }
