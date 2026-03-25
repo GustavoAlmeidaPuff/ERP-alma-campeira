@@ -1,30 +1,21 @@
 'use server'
 
-import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { assertPermissao } from '@/lib/auth'
 import type { Cargo, ModuloKey } from '@/types'
 import { MODULOS } from '@/types'
 
-const _cachedGetCargos = unstable_cache(
-  async (_userId: string) => {
-    const supabase = await createClient()
-    const { data, error } = await supabase
-      .from('cargos')
-      .select('*, permissoes:cargo_permissoes(*)')
-      .order('nome')
-    if (error) throw new Error(error.message)
-    return data as Cargo[]
-  },
-  ['cargos'],
-  { tags: ['cargos'] }
-)
-
 export async function getCargos(): Promise<Cargo[]> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Não autenticado')
-  return _cachedGetCargos(user.id)
+  const { data, error } = await supabase
+    .from('cargos')
+    .select('*, permissoes:cargo_permissoes(*)')
+    .order('nome')
+  if (error) throw new Error(error.message)
+  return data as Cargo[]
 }
 
 type CargoInput = {
@@ -55,7 +46,6 @@ export async function criarCargo(input: CargoInput) {
   const { error: permError } = await supabase.from('cargo_permissoes').insert(permissoes)
   if (permError) throw new Error(permError.message)
 
-  revalidateTag('cargos', {})
   revalidatePath('/cargos')
   revalidatePath('/usuarios')
 }
@@ -83,7 +73,6 @@ export async function atualizarCargo(id: string, input: CargoInput) {
 
   if (permError) throw new Error(permError.message)
 
-  revalidateTag('cargos', {})
   revalidatePath('/cargos')
   revalidatePath('/usuarios')
 }
@@ -105,6 +94,5 @@ export async function deletarCargo(id: string) {
   const { error } = await supabase.from('cargos').delete().eq('id', id)
   if (error) throw new Error(error.message)
 
-  revalidateTag('cargos', {})
   revalidatePath('/cargos')
 }

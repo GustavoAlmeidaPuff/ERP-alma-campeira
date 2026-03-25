@@ -1,26 +1,17 @@
 'use server'
 
-import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { assertPermissao } from '@/lib/auth'
 import type { Faca } from '@/types'
-
-const _cachedGetFacas = unstable_cache(
-  async (_userId: string) => {
-    const supabase = await createClient()
-    const { data, error } = await supabase.from('facas').select('*').order('codigo')
-    if (error) throw new Error(error.message)
-    return data as Faca[]
-  },
-  ['facas'],
-  { tags: ['facas'] }
-)
 
 export async function getFacas(): Promise<Faca[]> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Não autenticado')
-  return _cachedGetFacas(user.id)
+  const { data, error } = await supabase.from('facas').select('*').order('codigo')
+  if (error) throw new Error(error.message)
+  return data as Faca[]
 }
 
 export async function gerarCodigoFaca(): Promise<string> {
@@ -58,7 +49,6 @@ export async function criarFaca(input: FacaInput) {
   })
 
   if (error) throw new Error(error.message)
-  revalidateTag('facas', {})
   revalidatePath('/facas')
 }
 
@@ -77,7 +67,6 @@ export async function atualizarFaca(id: string, input: FacaInput) {
     .eq('id', id)
 
   if (error) throw new Error(error.message)
-  revalidateTag('facas', {})
   revalidatePath('/facas')
 }
 
@@ -86,6 +75,5 @@ export async function deletarFaca(id: string) {
   const supabase = await createClient()
   const { error } = await supabase.from('facas').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidateTag('facas', {})
   revalidatePath('/facas')
 }

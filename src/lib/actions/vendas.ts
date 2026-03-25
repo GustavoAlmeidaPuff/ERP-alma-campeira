@@ -1,33 +1,24 @@
 'use server'
 
-import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { assertPermissao } from '@/lib/auth'
 import type { Pedido } from '@/types'
-
-const _cachedGetVendas = unstable_cache(
-  async (_userId: string) => {
-    const supabase = await createClient()
-    const { data, error } = await supabase
-      .from('pedidos')
-      .select(`
-        *,
-        cliente:clientes(id, nome, tipo),
-        itens:pedido_itens(*, faca:facas(id, codigo, nome, preco_venda))
-      `)
-      .order('created_at', { ascending: false })
-    if (error) throw new Error(error.message)
-    return data as Pedido[]
-  },
-  ['vendas'],
-  { tags: ['vendas'] }
-)
 
 export async function getVendas(): Promise<Pedido[]> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Não autenticado')
-  return _cachedGetVendas(user.id)
+  const { data, error } = await supabase
+    .from('pedidos')
+    .select(`
+      *,
+      cliente:clientes(id, nome, tipo),
+      itens:pedido_itens(*, faca:facas(id, codigo, nome, preco_venda))
+    `)
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+  return data as Pedido[]
 }
 
 export async function gerarCodigoPedido(): Promise<string> {
@@ -91,7 +82,6 @@ export async function criarVenda(input: VendaInput) {
   )
   if (itemsError) throw new Error(itemsError.message)
 
-  revalidateTag('vendas', {})
   revalidatePath('/vendas')
 }
 
@@ -135,7 +125,6 @@ export async function atualizarVenda(id: string, input: VendaInput) {
   )
   if (itemsError) throw new Error(itemsError.message)
 
-  revalidateTag('vendas', {})
   revalidatePath('/vendas')
 }
 
@@ -149,7 +138,6 @@ export async function avancarStatus(id: string, novoStatus: 'confirmado' | 'em_p
     .eq('id', id)
 
   if (error) throw new Error(error.message)
-  revalidateTag('vendas', {})
   revalidatePath('/vendas')
 }
 
@@ -233,8 +221,6 @@ export async function marcarEntregue(id: string) {
     }
   }
 
-  revalidateTag('vendas', {})
-  revalidateTag('facas', {})
   revalidatePath('/vendas')
   revalidatePath('/facas')
 }
@@ -258,7 +244,6 @@ export async function cancelarVenda(id: string) {
     .update({ status: 'cancelado' })
     .eq('id', id)
   if (error) throw new Error(error.message)
-  revalidateTag('vendas', {})
   revalidatePath('/vendas')
 }
 
@@ -278,6 +263,5 @@ export async function deletarVenda(id: string) {
 
   const { error } = await supabase.from('pedidos').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidateTag('vendas', {})
   revalidatePath('/vendas')
 }

@@ -1,29 +1,20 @@
 'use server'
 
-import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { assertPermissao } from '@/lib/auth'
 import type { MateriaPrima } from '@/types'
-
-const _cachedGetMatériasPrimas = unstable_cache(
-  async (_userId: string) => {
-    const supabase = await createClient()
-    const { data, error } = await supabase
-      .from('materias_primas')
-      .select('*, fornecedor:fornecedores(id, nome, telefone, email, created_at)')
-      .order('codigo')
-    if (error) throw new Error(error.message)
-    return data as MateriaPrima[]
-  },
-  ['materias-primas'],
-  { tags: ['materias-primas'] }
-)
 
 export async function getMatériasPrimas(): Promise<MateriaPrima[]> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Não autenticado')
-  return _cachedGetMatériasPrimas(user.id)
+  const { data, error } = await supabase
+    .from('materias_primas')
+    .select('*, fornecedor:fornecedores(id, nome, telefone, email, created_at)')
+    .order('codigo')
+  if (error) throw new Error(error.message)
+  return data as MateriaPrima[]
 }
 
 export async function gerarCodigoMP(): Promise<string> {
@@ -63,7 +54,6 @@ export async function criarMateriaPrima(input: MPInput) {
   })
 
   if (error) throw new Error(error.message)
-  revalidateTag('materias-primas', {})
   revalidatePath('/materias-primas')
 }
 
@@ -83,7 +73,6 @@ export async function atualizarMateriaPrima(id: string, input: MPInput) {
     .eq('id', id)
 
   if (error) throw new Error(error.message)
-  revalidateTag('materias-primas', {})
   revalidatePath('/materias-primas')
 }
 
@@ -103,6 +92,5 @@ export async function deletarMateriaPrima(id: string) {
 
   const { error } = await supabase.from('materias_primas').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidateTag('materias-primas', {})
   revalidatePath('/materias-primas')
 }
