@@ -18,8 +18,18 @@ type NavSection = {
 }
 
 const iconMP = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
-    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.8}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="size-[18px]"
+  >
+    <path d="M4 20v-2" />
+    <path d="M3 18h3" />
+    <path d="M5 18 18.4 4.6a1.7 1.7 0 0 1 2.4 2.4L7.4 20.4a2 2 0 0 1-1.4.6H4.6a.6.6 0 0 1-.6-.6V19a2 2 0 0 1 .6-1.4Z" />
   </svg>
 )
 const iconFaca = (
@@ -140,9 +150,20 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-5" style={{ borderBottom: '1px solid var(--ac-border)' }}>
         <div className="size-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--ac-accent)' }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth={2} className="size-4">
-            <path d="M14.5 10.5 3 22" /><path d="M14.5 10.5 21 4l-7 7" /><path d="M10.5 14.5 3 22" />
-          </svg>
+          <span
+            className="block size-5"
+            style={{
+              backgroundColor: '#FACC15',
+              WebkitMaskImage: "url('/images/logo.png')",
+              WebkitMaskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center',
+              WebkitMaskSize: 'contain',
+              maskImage: "url('/images/logo.png')",
+              maskRepeat: 'no-repeat',
+              maskPosition: 'center',
+              maskSize: 'contain',
+            }}
+          />
         </div>
         <span className="font-bold text-sm" style={{ color: 'var(--ac-text)' }}>Alma Campeira</span>
       </div>
