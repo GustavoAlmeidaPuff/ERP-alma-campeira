@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -116,7 +116,13 @@ function getInitials(email: string) {
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
+
+  useEffect(() => {
+    setPendingHref(null)
+  }, [pathname])
 
   useEffect(() => {
     const supabase = createClient()
@@ -154,10 +160,17 @@ export function Sidebar() {
             {/* Itens */}
             {section.items.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+              const isPending = pendingHref === item.href
               return (
                 <Link
                   key={item.href}
                   href={item.available ? item.href : '#'}
+                  onClick={(e) => {
+                    if (!item.available || isActive) return
+                    e.preventDefault()
+                    setPendingHref(item.href)
+                    router.push(item.href)
+                  }}
                   className={[
                     'flex items-center gap-3 px-4 py-2 mx-2 rounded-lg text-sm transition-colors',
                     isActive
@@ -167,12 +180,20 @@ export function Sidebar() {
                       : 'opacity-35 cursor-not-allowed pointer-events-none',
                   ].join(' ')}
                   style={{
-                    color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)',
-                    background: isActive ? 'color-mix(in srgb, var(--ac-accent) 10%, transparent)' : 'transparent',
+                    color: isActive ? 'var(--ac-accent)' : isPending ? 'var(--ac-accent)' : 'var(--ac-muted)',
+                    background: isActive
+                      ? 'color-mix(in srgb, var(--ac-accent) 10%, transparent)'
+                      : isPending
+                      ? 'color-mix(in srgb, var(--ac-accent) 6%, transparent)'
+                      : 'transparent',
                   }}
                 >
-                  <span style={{ color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)' }}>
-                    {item.icon}
+                  <span style={{ color: isActive || isPending ? 'var(--ac-accent)' : 'var(--ac-muted)' }}>
+                    {isPending ? (
+                      <svg viewBox="0 0 24 24" className="size-[18px] animate-spin" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+                      </svg>
+                    ) : item.icon}
                   </span>
                   <span>{item.label}</span>
                 </Link>
@@ -205,6 +226,12 @@ export function Sidebar() {
           {/* Engrenagem → configurações */}
           <Link
             href="/configuracoes"
+            onClick={(e) => {
+              if (pathname.startsWith('/configuracoes')) return
+              e.preventDefault()
+              setPendingHref('/configuracoes')
+              router.push('/configuracoes')
+            }}
             className="flex-shrink-0 p-1 rounded-md transition-colors hover:opacity-80"
             style={{
               color: pathname.startsWith('/configuracoes') ? 'var(--ac-accent)' : 'var(--ac-muted)',
