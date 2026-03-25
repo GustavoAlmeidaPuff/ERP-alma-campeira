@@ -220,7 +220,7 @@ export async function marcarEntregue(id: string) {
   for (const item of itens) {
     const facaBom = (boms ?? []).filter((b) => b.faca_id === item.faca_id)
     for (const bom of facaBom) {
-      const mp = bom.mp as { id: string; fornecedor_id: string | null }
+      const mp = (Array.isArray(bom.mp) ? bom.mp[0] : bom.mp) as { id: string; fornecedor_id: string | null }
       // Inserts a reposição row even without supplier — OC module will handle grouping
       await supabase.from('fila_reposicao').insert({
         materia_prima_id: bom.materia_prima_id,
