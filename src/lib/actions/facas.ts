@@ -58,7 +58,7 @@ export async function criarFaca(input: FacaInput) {
   })
 
   if (error) throw new Error(error.message)
-  revalidateTag('facas')
+  revalidateTag('facas', {})
   revalidatePath('/facas')
 }
 
@@ -77,7 +77,7 @@ export async function atualizarFaca(id: string, input: FacaInput) {
     .eq('id', id)
 
   if (error) throw new Error(error.message)
-  revalidateTag('facas')
+  revalidateTag('facas', {})
   revalidatePath('/facas')
 }
 
@@ -86,6 +86,6 @@ export async function deletarFaca(id: string) {
   const supabase = await createClient()
   const { error } = await supabase.from('facas').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidateTag('facas')
+  revalidateTag('facas', {})
   revalidatePath('/facas')
 }

@@ -44,7 +44,7 @@ export async function criarCliente(input: ClienteInput) {
     estado: input.estado.trim() || null,
   })
   if (error) throw new Error(error.message)
-  revalidateTag('clientes')
+  revalidateTag('clientes', {})
   revalidatePath('/clientes')
 }
 
@@ -63,7 +63,7 @@ export async function atualizarCliente(id: string, input: ClienteInput) {
     })
     .eq('id', id)
   if (error) throw new Error(error.message)
-  revalidateTag('clientes')
+  revalidateTag('clientes', {})
   revalidatePath('/clientes')
   revalidatePath('/vendas')
 }
@@ -84,6 +84,6 @@ export async function deletarCliente(id: string) {
 
   const { error } = await supabase.from('clientes').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidateTag('clientes')
+  revalidateTag('clientes', {})
   revalidatePath('/clientes')
 }

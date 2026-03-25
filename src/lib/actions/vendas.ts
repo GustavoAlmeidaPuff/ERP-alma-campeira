@@ -91,7 +91,7 @@ export async function criarVenda(input: VendaInput) {
   )
   if (itemsError) throw new Error(itemsError.message)
 
-  revalidateTag('vendas')
+  revalidateTag('vendas', {})
   revalidatePath('/vendas')
 }
 
@@ -135,7 +135,7 @@ export async function atualizarVenda(id: string, input: VendaInput) {
   )
   if (itemsError) throw new Error(itemsError.message)
 
-  revalidateTag('vendas')
+  revalidateTag('vendas', {})
   revalidatePath('/vendas')
 }
 
@@ -149,7 +149,7 @@ export async function avancarStatus(id: string, novoStatus: 'confirmado' | 'em_p
     .eq('id', id)
 
   if (error) throw new Error(error.message)
-  revalidateTag('vendas')
+  revalidateTag('vendas', {})
   revalidatePath('/vendas')
 }
 
@@ -233,8 +233,8 @@ export async function marcarEntregue(id: string) {
     }
   }
 
-  revalidateTag('vendas')
-  revalidateTag('facas')
+  revalidateTag('vendas', {})
+  revalidateTag('facas', {})
   revalidatePath('/vendas')
   revalidatePath('/facas')
 }
@@ -258,7 +258,7 @@ export async function cancelarVenda(id: string) {
     .update({ status: 'cancelado' })
     .eq('id', id)
   if (error) throw new Error(error.message)
-  revalidateTag('vendas')
+  revalidateTag('vendas', {})
   revalidatePath('/vendas')
 }
 
@@ -278,6 +278,6 @@ export async function deletarVenda(id: string) {
 
   const { error } = await supabase.from('pedidos').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidateTag('vendas')
+  revalidateTag('vendas', {})
   revalidatePath('/vendas')
 }

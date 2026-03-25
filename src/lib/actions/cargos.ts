@@ -55,7 +55,7 @@ export async function criarCargo(input: CargoInput) {
   const { error: permError } = await supabase.from('cargo_permissoes').insert(permissoes)
   if (permError) throw new Error(permError.message)
 
-  revalidateTag('cargos')
+  revalidateTag('cargos', {})
   revalidatePath('/cargos')
   revalidatePath('/usuarios')
 }
@@ -83,7 +83,7 @@ export async function atualizarCargo(id: string, input: CargoInput) {
 
   if (permError) throw new Error(permError.message)
 
-  revalidateTag('cargos')
+  revalidateTag('cargos', {})
   revalidatePath('/cargos')
   revalidatePath('/usuarios')
 }
@@ -105,6 +105,6 @@ export async function deletarCargo(id: string) {
   const { error } = await supabase.from('cargos').delete().eq('id', id)
   if (error) throw new Error(error.message)
 
-  revalidateTag('cargos')
+  revalidateTag('cargos', {})
   revalidatePath('/cargos')
 }

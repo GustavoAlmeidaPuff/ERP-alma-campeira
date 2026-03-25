@@ -93,7 +93,7 @@ export async function criarUsuario({
     cargo_id: cargo_id || null,
   })
   if (perfilError) throw new Error(perfilError.message)
-  revalidateTag('usuarios')
+  revalidateTag('usuarios', {})
   revalidatePath('/usuarios')
 }
 
@@ -133,7 +133,7 @@ export async function atualizarPerfil(
     if (permError) throw new Error(permError.message)
   }
 
-  revalidateTag('usuarios')
+  revalidateTag('usuarios', {})
   revalidatePath('/usuarios')
 }
 
@@ -142,6 +142,6 @@ export async function deletarUsuario(id: string) {
   const admin = createAdminClient()
   const { error } = await admin.auth.admin.deleteUser(id)
   if (error) throw new Error(error.message)
-  revalidateTag('usuarios')
+  revalidateTag('usuarios', {})
   revalidatePath('/usuarios')
 }
