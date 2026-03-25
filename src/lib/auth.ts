@@ -43,7 +43,8 @@ export const getPermissoesEfetivas = cache(async (): Promise<PermMap> => {
     return permissoesVazias()
   }
 
-  const cargo = perfil.cargo as { permissoes: Parameters<typeof permissoesFromArray>[0] }
+  const cargoRaw = Array.isArray(perfil.cargo) ? perfil.cargo[0] : perfil.cargo
+  const cargo = cargoRaw as { permissoes: Parameters<typeof permissoesFromArray>[0] }
   return permissoesFromArray(cargo.permissoes)
 })
 
