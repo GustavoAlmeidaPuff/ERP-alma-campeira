@@ -1,12 +1,9 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/sidebar'
-
-export const dynamic = 'force-dynamic'
+import { getAuthenticatedUser } from '@/lib/auth'
 
 export default async function ErpLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthenticatedUser()
 
   if (!user) redirect('/login')
 

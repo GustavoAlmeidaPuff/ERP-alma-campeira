@@ -2,14 +2,17 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { assertPermissao } from '@/lib/auth'
+import { assertPermissao, requireAuthenticatedUserId } from '@/lib/auth'
 import type { Fornecedor } from '@/types'
 
-export async function getFornecedores(): Promise<Fornecedor[]> {
+export async function getFornecedores(limit = 50): Promise<Fornecedor[]> {
+  await requireAuthenticatedUserId()
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Não autenticado')
-  const { data, error } = await supabase.from('fornecedores').select('*').order('nome')
+  const { data, error } = await supabase
+    .from('fornecedores')
+    .select('*')
+    .order('nome')
+    .limit(limit)
   if (error) throw new Error(error.message)
   return data as Fornecedor[]
 }

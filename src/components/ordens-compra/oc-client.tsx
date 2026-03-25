@@ -520,7 +520,7 @@ export function OcClient({ fila, ordens, perm }: Props) {
         style={{ borderBottom: '1px solid var(--ac-border)' }}
       >
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Ordens de Compra</h1>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Ordens de Compra</h2>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ac-muted)' }}>
             {fila.length > 0
               ? `${fila.length} ${fila.length === 1 ? 'fornecedor' : 'fornecedores'} com itens pendentes`

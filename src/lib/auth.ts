@@ -3,8 +3,21 @@ import { createClient } from '@/lib/supabase/server'
 import { permissoesVazias, permissoesFromArray } from '@/lib/permissoes'
 import type { PermMap } from '@/lib/permissoes'
 import type { ModuloKey } from '@/types'
+import type { User } from '@supabase/supabase-js'
 
 type Acao = 'ver' | 'criar' | 'editar' | 'deletar'
+
+export const getAuthenticatedUser = cache(async (): Promise<User | null> => {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+})
+
+export async function requireAuthenticatedUserId(): Promise<string> {
+  const user = await getAuthenticatedUser()
+  if (!user) throw new Error('Não autenticado')
+  return user.id
+}
 
 /**
  * Resolve as permissões efetivas do usuário logado.
@@ -14,7 +27,7 @@ type Acao = 'ver' | 'criar' | 'editar' | 'deletar'
  */
 export const getPermissoesEfetivas = cache(async (): Promise<PermMap> => {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthenticatedUser()
   if (!user) return permissoesVazias()
 
   // Permissões customizadas têm prioridade

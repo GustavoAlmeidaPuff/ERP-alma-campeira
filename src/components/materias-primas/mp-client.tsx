@@ -65,7 +65,7 @@ export function MPClient({ materiasPrimas, fornecedores, perm }: Props) {
       {/* Header da página */}
       <div className="flex items-center justify-between px-8 py-6" style={{ borderBottom: '1px solid var(--ac-border)' }}>
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Matérias-Primas</h1>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Matérias-Primas</h2>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ac-muted)' }}>
             {materiasPrimas.length} {materiasPrimas.length === 1 ? 'item cadastrado' : 'itens cadastrados'}
           </p>

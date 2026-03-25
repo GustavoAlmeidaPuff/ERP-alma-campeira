@@ -2,18 +2,18 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { assertPermissao } from '@/lib/auth'
+import { assertPermissao, requireAuthenticatedUserId } from '@/lib/auth'
 import type { Cargo, ModuloKey } from '@/types'
 import { MODULOS } from '@/types'
 
-export async function getCargos(): Promise<Cargo[]> {
+export async function getCargos(limit = 50): Promise<Cargo[]> {
+  await requireAuthenticatedUserId()
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Não autenticado')
   const { data, error } = await supabase
     .from('cargos')
     .select('*, permissoes:cargo_permissoes(*)')
     .order('nome')
+    .limit(limit)
   if (error) throw new Error(error.message)
   return data as Cargo[]
 }

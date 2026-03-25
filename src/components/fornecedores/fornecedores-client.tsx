@@ -47,7 +47,7 @@ export function FornecedoresClient({ fornecedores, perm }: { fornecedores: Forne
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-6" style={{ borderBottom: '1px solid var(--ac-border)' }}>
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Fornecedores</h1>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Fornecedores</h2>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ac-muted)' }}>
             {fornecedores.length} {fornecedores.length === 1 ? 'fornecedor cadastrado' : 'fornecedores cadastrados'}
           </p>

@@ -75,7 +75,7 @@ export function VendasClient({ pedidos, clientes, facas, perm }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-6" style={{ borderBottom: '1px solid var(--ac-border)' }}>
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Vendas</h1>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Vendas</h2>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ac-muted)' }}>
             {pedidos.filter(p => p.status !== 'cancelado' && p.status !== 'entregue').length} vendas em aberto
           </p>

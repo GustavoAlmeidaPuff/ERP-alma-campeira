@@ -2,13 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { assertPermissao } from '@/lib/auth'
+import { assertPermissao, getAuthenticatedUser, requireAuthenticatedUserId } from '@/lib/auth'
 import type { Pedido } from '@/types'
 
-export async function getVendas(): Promise<Pedido[]> {
+export async function getVendas(limit = 80): Promise<Pedido[]> {
+  await requireAuthenticatedUserId()
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Não autenticado')
   const { data, error } = await supabase
     .from('pedidos')
     .select(`
@@ -17,6 +16,7 @@ export async function getVendas(): Promise<Pedido[]> {
       itens:pedido_itens(*, faca:facas(id, codigo, nome, preco_venda))
     `)
     .order('created_at', { ascending: false })
+    .limit(limit)
   if (error) throw new Error(error.message)
   return data as Pedido[]
 }
@@ -179,7 +179,7 @@ export async function marcarEntregue(id: string) {
     throw new Error(`Estoque insuficiente: ${detalhes}`)
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthenticatedUser()
 
   const { error: upErr } = await supabase
     .from('pedidos')

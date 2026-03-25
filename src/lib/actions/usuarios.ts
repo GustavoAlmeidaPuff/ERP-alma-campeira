@@ -3,18 +3,20 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { assertPermissao } from '@/lib/auth'
+import { assertPermissao, requireAuthenticatedUserId } from '@/lib/auth'
 import type { Usuario, PerfilUsuario } from '@/types'
 import type { PermMap } from '@/lib/permissoes'
 import { MODULOS } from '@/types'
 
-export async function getUsuarios(): Promise<Usuario[]> {
+export async function getUsuarios(limit = 100): Promise<Usuario[]> {
+  await requireAuthenticatedUserId()
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Não autenticado')
 
   const admin = createAdminClient()
-  const { data: authData, error: authError } = await admin.auth.admin.listUsers()
+  const { data: authData, error: authError } = await admin.auth.admin.listUsers({
+    page: 1,
+    perPage: limit,
+  })
   if (authError) throw new Error(authError.message)
 
   const [{ data: perfis }, { data: userPerms }] = await Promise.all([

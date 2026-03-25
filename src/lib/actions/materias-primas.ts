@@ -2,17 +2,17 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { assertPermissao } from '@/lib/auth'
+import { assertPermissao, requireAuthenticatedUserId } from '@/lib/auth'
 import type { MateriaPrima } from '@/types'
 
-export async function getMatériasPrimas(): Promise<MateriaPrima[]> {
+export async function getMatériasPrimas(limit = 120): Promise<MateriaPrima[]> {
+  await requireAuthenticatedUserId()
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Não autenticado')
   const { data, error } = await supabase
     .from('materias_primas')
     .select('*, fornecedor:fornecedores(id, nome, telefone, email, created_at)')
     .order('codigo')
+    .limit(limit)
   if (error) throw new Error(error.message)
   return data as MateriaPrima[]
 }

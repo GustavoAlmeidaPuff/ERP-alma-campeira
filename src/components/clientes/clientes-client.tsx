@@ -56,7 +56,7 @@ export function ClientesClient({ clientes, perm }: { clientes: Cliente[]; perm: 
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-6" style={{ borderBottom: '1px solid var(--ac-border)' }}>
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Clientes</h1>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Clientes</h2>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ac-muted)' }}>
             {clientes.length} {clientes.length === 1 ? 'cliente cadastrado' : 'clientes cadastrados'}
           </p>

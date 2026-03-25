@@ -49,7 +49,7 @@ export function CargosClient({ cargos, perm }: { cargos: Cargo[]; perm: Perm }) 
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-6" style={{ borderBottom: '1px solid var(--ac-border)' }}>
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Cargos</h1>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Cargos</h2>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ac-muted)' }}>
             Configure os cargos e suas permissões, depois delegue aos usuários
           </p>

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -122,6 +122,7 @@ function getInitials(email: string) {
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [pendingHref, setPendingHref] = useState<string | null>(null)
   const clickStartedAtRef = useRef<number | null>(null)
@@ -143,10 +144,12 @@ export function Sidebar() {
 
     const tick = () => {
       const content = document.querySelector('main')
-      const pageHeading = Array.from(document.querySelectorAll('h1')).find(
-        (h1) => h1.textContent?.trim() === pageName
+      const pageHeading = Array.from(document.querySelectorAll('h1[data-nav-page-title]')).find(
+        (h1) => h1.getAttribute('data-nav-page-title') === pageName
       )
-      if (content && pageHeading) {
+      const pageHeadingVisible = Boolean(pageHeading && pageHeading.getBoundingClientRect().height > 0)
+
+      if (content && pageHeadingVisible) {
         if (process.env.NODE_ENV === 'development' && startedAt) {
           const ms = Math.round(performance.now() - startedAt)
           console.log(`[DEV][NAV] ${pageName} conteúdo visível em ${ms}ms`)
@@ -172,6 +175,11 @@ export function Sidebar() {
       setUserEmail(data.user?.email ?? null)
     })
   }, [])
+
+  useEffect(() => {
+    const criticalRoutes = ['/vendas', '/clientes', '/usuarios', '/cargos']
+    criticalRoutes.forEach((route) => router.prefetch(route))
+  }, [router])
 
   return (
     <aside

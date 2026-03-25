@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { assertPermissao } from '@/lib/auth'
+import { assertPermissao, getAuthenticatedUser } from '@/lib/auth'
 import type { OrdemCompra, FilaFornecedor } from '@/types'
 
 // ─── Fila de Reposição ────────────────────────────────────────────────────────
@@ -235,9 +235,7 @@ export async function mudarStatusOC(id: string, status: 'pendente' | 'enviada' |
 
     if (itensErr) throw new Error(itensErr.message)
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getAuthenticatedUser()
 
     // Incrementar estoque e registrar movimentação
     for (const item of itens ?? []) {

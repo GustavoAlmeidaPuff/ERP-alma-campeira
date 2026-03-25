@@ -80,7 +80,7 @@ export function ConfiguracoesClient({ categorias }: Props) {
     <div>
       {/* Header */}
       <div className="px-8 py-6" style={{ borderBottom: '1px solid var(--ac-border)' }}>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Configurações</h1>
+        <h2 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Configurações</h2>
         <p className="text-sm mt-0.5" style={{ color: 'var(--ac-muted)' }}>
           Preferências do sistema
         </p>
