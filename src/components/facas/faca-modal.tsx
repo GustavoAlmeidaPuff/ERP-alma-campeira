@@ -1,18 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { criarFaca, atualizarFaca } from '@/lib/actions/facas'
-import { CATEGORIAS_FACA } from '@/types'
-import type { Faca } from '@/types'
+import type { Faca, CategoriaFacaDB } from '@/types'
 
 type Props = {
   open: boolean
   onClose: () => void
   editando?: Faca | null
+  categorias: CategoriaFacaDB[]
 }
 
 type Form = {
@@ -22,10 +22,9 @@ type Form = {
   estoque_atual: string
 }
 
-const formVazio: Form = { nome: '', categoria: 'Gauchesca', preco_venda: '', estoque_atual: '0' }
-
-export function FacaModal({ open, onClose, editando }: Props) {
-  const [form, setForm] = useState<Form>(formVazio)
+export function FacaModal({ open, onClose, editando, categorias }: Props) {
+  const defaultCategoria = categorias[0]?.nome ?? ''
+  const [form, setForm] = useState<Form>({ nome: '', categoria: defaultCategoria, preco_venda: '', estoque_atual: '0' })
   const [erro, setErro] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -38,10 +37,10 @@ export function FacaModal({ open, onClose, editando }: Props) {
         estoque_atual: String(editando.estoque_atual),
       })
     } else {
-      setForm(formVazio)
+      setForm({ nome: '', categoria: categorias[0]?.nome ?? '', preco_venda: '', estoque_atual: '0' })
     }
     setErro('')
-  }, [editando, open])
+  }, [editando, open, categorias])
 
   function set(field: keyof Form, value: string) {
     setForm((f) => ({ ...f, [field]: value }))
@@ -87,16 +86,50 @@ export function FacaModal({ open, onClose, editando }: Props) {
           onChange={(e) => set('nome', e.target.value)}
         />
 
-        <Select
-          id="categoria"
-          label="Categoria *"
-          value={form.categoria}
-          onChange={(e) => set('categoria', e.target.value)}
-        >
-          {CATEGORIAS_FACA.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </Select>
+        {/* Categoria com link para gerenciar */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label htmlFor="categoria" className="text-sm font-medium" style={{ color: 'var(--ac-text)' }}>
+              Categoria *
+            </label>
+            <Link
+              href="/configuracoes#categorias-faca"
+              onClick={onClose}
+              className="flex items-center gap-1 text-xs font-medium transition-colors"
+              style={{ color: 'var(--ac-muted)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ac-accent)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ac-muted)')}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-3.5">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              Gerenciar categorias
+            </Link>
+          </div>
+          <select
+            id="categoria"
+            value={form.categoria}
+            onChange={(e) => set('categoria', e.target.value)}
+            className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all appearance-none"
+            style={{
+              background: 'var(--ac-card)',
+              border: '1px solid var(--ac-border)',
+              color: 'var(--ac-text)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%236b7280' stroke-width='2' d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 10px center',
+              backgroundSize: '16px',
+              paddingRight: '36px',
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ac-accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--ac-accent) 20%, transparent)' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ac-border)'; e.currentTarget.style.boxShadow = 'none' }}
+          >
+            {categorias.map((c) => (
+              <option key={c.id} value={c.nome}>{c.nome}</option>
+            ))}
+          </select>
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Input
