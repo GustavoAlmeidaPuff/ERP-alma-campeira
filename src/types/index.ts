@@ -184,3 +184,13 @@ export const CATEGORIAS_FACA = [
 ] as const
 
 export type CategoriaFaca = (typeof CATEGORIAS_FACA)[number]
+
+export type CategoriaFacaDB = {
+  id: string
+  nome: string
+  cor_texto: string
+  cor_fundo: string
+  cor_borda: string
+  ordem: number
+  created_at: string
+}

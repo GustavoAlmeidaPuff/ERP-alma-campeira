@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -23,8 +23,10 @@ const iconMP = (
   </svg>
 )
 const iconFaca = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
-    <path d="M14.5 10.5 3 22" /><path d="M14.5 10.5 21 4l-7 7" /><path d="M10.5 14.5 3 22" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="size-[18px]">
+    <path d="M4 22 L4 19" />
+    <path d="M2 19 L6 19" />
+    <path d="M4 19 L20 5 C21 4 22 5 21 6 C20 8 8 18 6 19" />
   </svg>
 )
 const iconFornecedor = (
@@ -116,7 +118,6 @@ function getInitials(email: string) {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [pendingHref, setPendingHref] = useState<string | null>(null)
 
@@ -165,11 +166,9 @@ export function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.available ? item.href : '#'}
-                  onClick={(e) => {
+                  onClick={() => {
                     if (!item.available || isActive) return
-                    e.preventDefault()
                     setPendingHref(item.href)
-                    router.push(item.href)
                   }}
                   className={[
                     'flex items-center gap-3 px-4 py-2 mx-2 rounded-lg text-sm transition-colors',
@@ -226,11 +225,9 @@ export function Sidebar() {
           {/* Engrenagem → configurações */}
           <Link
             href="/configuracoes"
-            onClick={(e) => {
+            onClick={() => {
               if (pathname.startsWith('/configuracoes')) return
-              e.preventDefault()
               setPendingHref('/configuracoes')
-              router.push('/configuracoes')
             }}
             className="flex-shrink-0 p-1 rounded-md transition-colors hover:opacity-80"
             style={{
