@@ -18,25 +18,19 @@ type NavSection = {
 }
 
 const iconMP = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="size-[18px]"
-  >
-    <path d="M4 20v-2" />
-    <path d="M3 18h3" />
-    <path d="M5 18 18.4 4.6a1.7 1.7 0 0 1 2.4 2.4L7.4 20.4a2 2 0 0 1-1.4.6H4.6a.6.6 0 0 1-.6-.6V19a2 2 0 0 1 .6-1.4Z" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
+    <path d="M4 8h16" />
+    <path d="M6 8V6.8a1.8 1.8 0 0 1 1.8-1.8h8.4A1.8 1.8 0 0 1 18 6.8V8" />
+    <rect x="5" y="8" width="14" height="11" rx="2" />
+    <path d="M9 12h6" />
+    <path d="M9 15h4" />
   </svg>
 )
 const iconFaca = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="size-[18px]">
-    <path d="M4 22 L4 19" />
-    <path d="M2 19 L6 19" />
-    <path d="M4 19 L20 5 C21 4 22 5 21 6 C20 8 8 18 6 19" />
+    <path d="M14 4c1.6 2.3 2.1 5 1.2 7.2l-1 2.4-3.8-3.8 2.4-1c2.2-.9 4.9-.4 7.2 1.2" />
+    <path d="M10.6 9.8 4 16.4" />
+    <path d="M3 17.4 6.6 21 10.2 17.4 6.6 13.8 3 17.4Z" />
   </svg>
 )
 const iconFornecedor = (
@@ -150,20 +144,9 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-5" style={{ borderBottom: '1px solid var(--ac-border)' }}>
         <div className="size-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--ac-accent)' }}>
-          <span
-            className="block size-5"
-            style={{
-              backgroundColor: '#FACC15',
-              WebkitMaskImage: "url('/images/logo.png')",
-              WebkitMaskRepeat: 'no-repeat',
-              WebkitMaskPosition: 'center',
-              WebkitMaskSize: 'contain',
-              maskImage: "url('/images/logo.png')",
-              maskRepeat: 'no-repeat',
-              maskPosition: 'center',
-              maskSize: 'contain',
-            }}
-          />
+          <svg viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth={2} className="size-4">
+            <path d="M14.5 10.5 3 22" /><path d="M14.5 10.5 21 4l-7 7" /><path d="M10.5 14.5 3 22" />
+          </svg>
         </div>
         <span className="font-bold text-sm" style={{ color: 'var(--ac-text)' }}>Alma Campeira</span>
       </div>
