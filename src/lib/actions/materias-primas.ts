@@ -1,19 +1,29 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { assertPermissao } from '@/lib/auth'
 import type { MateriaPrima } from '@/types'
 
+const _cachedGetMatériasPrimas = unstable_cache(
+  async (_userId: string) => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('materias_primas')
+      .select('*, fornecedor:fornecedores(id, nome, telefone, email, created_at)')
+      .order('codigo')
+    if (error) throw new Error(error.message)
+    return data as MateriaPrima[]
+  },
+  ['materias-primas'],
+  { tags: ['materias-primas'] }
+)
+
 export async function getMatériasPrimas(): Promise<MateriaPrima[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('materias_primas')
-    .select('*, fornecedor:fornecedores(id, nome, telefone, email, created_at)')
-    .order('codigo')
-
-  if (error) throw new Error(error.message)
-  return data as MateriaPrima[]
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Não autenticado')
+  return _cachedGetMatériasPrimas(user.id)
 }
 
 export async function gerarCodigoMP(): Promise<string> {
@@ -53,6 +63,7 @@ export async function criarMateriaPrima(input: MPInput) {
   })
 
   if (error) throw new Error(error.message)
+  revalidateTag('materias-primas')
   revalidatePath('/materias-primas')
 }
 
@@ -72,6 +83,7 @@ export async function atualizarMateriaPrima(id: string, input: MPInput) {
     .eq('id', id)
 
   if (error) throw new Error(error.message)
+  revalidateTag('materias-primas')
   revalidatePath('/materias-primas')
 }
 
@@ -79,7 +91,6 @@ export async function deletarMateriaPrima(id: string) {
   await assertPermissao('materias_primas', 'deletar')
   const supabase = await createClient()
 
-  // Verificar se está sendo usada em alguma faca
   const { data: uso } = await supabase
     .from('faca_materias_primas')
     .select('id')
@@ -92,5 +103,6 @@ export async function deletarMateriaPrima(id: string) {
 
   const { error } = await supabase.from('materias_primas').delete().eq('id', id)
   if (error) throw new Error(error.message)
+  revalidateTag('materias-primas')
   revalidatePath('/materias-primas')
 }

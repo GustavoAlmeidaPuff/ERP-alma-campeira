@@ -2,6 +2,8 @@
 
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
+import { CategoriasFacaSection } from './categorias-faca-section'
+import type { CategoriaFacaDB } from '@/types'
 
 function ThemeOption({
   value,
@@ -63,7 +65,11 @@ function ThemeOption({
   )
 }
 
-export function ConfiguracoesClient() {
+type Props = {
+  categorias: CategoriaFacaDB[]
+}
+
+export function ConfiguracoesClient({ categorias }: Props) {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
@@ -80,7 +86,7 @@ export function ConfiguracoesClient() {
         </p>
       </div>
 
-      <div className="px-8 py-6 max-w-2xl">
+      <div className="px-8 py-6 max-w-2xl flex flex-col gap-6">
         {/* Seção de tema */}
         <div
           className="rounded-xl p-6"
@@ -134,6 +140,9 @@ export function ConfiguracoesClient() {
             </div>
           )}
         </div>
+
+        {/* Seção de categorias de facas */}
+        <CategoriasFacaSection categorias={categorias} />
       </div>
     </div>
   )

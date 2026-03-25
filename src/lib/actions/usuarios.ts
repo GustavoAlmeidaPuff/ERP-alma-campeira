@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { assertPermissao } from '@/lib/auth'
@@ -8,35 +8,45 @@ import type { Usuario, PerfilUsuario } from '@/types'
 import type { PermMap } from '@/lib/permissoes'
 import { MODULOS } from '@/types'
 
+const _cachedGetUsuarios = unstable_cache(
+  async (_userId: string) => {
+    const admin = createAdminClient()
+    const { data: authData, error: authError } = await admin.auth.admin.listUsers()
+    if (authError) throw new Error(authError.message)
+
+    const supabase = await createClient()
+    const [{ data: perfis }, { data: userPerms }] = await Promise.all([
+      supabase.from('usuarios_perfis').select('*, cargo:cargos(id, nome, cor, permissoes:cargo_permissoes(*))'),
+      supabase.from('usuario_permissoes').select('usuario_id'),
+    ])
+
+    const perfisMap = new Map((perfis ?? []).map((p) => [p.id, p]))
+    const customIds = new Set((userPerms ?? []).map((p) => p.usuario_id))
+
+    return authData.users.map((user) => {
+      const perfil = perfisMap.get(user.id)
+      return {
+        id: user.id,
+        email: user.email ?? '',
+        nome: perfil?.nome ?? user.email?.split('@')[0] ?? '',
+        perfil: (perfil?.perfil ?? 'vendas') as PerfilUsuario,
+        ativo: perfil?.ativo ?? true,
+        cargo_id: perfil?.cargo_id ?? null,
+        cargo: perfil?.cargo ?? null,
+        permissoes_customizadas: customIds.has(user.id),
+        created_at: user.created_at,
+      }
+    }) as Usuario[]
+  },
+  ['usuarios'],
+  { tags: ['usuarios'] }
+)
+
 export async function getUsuarios(): Promise<Usuario[]> {
-  const admin = createAdminClient()
-  const { data: authData, error: authError } = await admin.auth.admin.listUsers()
-  if (authError) throw new Error(authError.message)
-
   const supabase = await createClient()
-  const [{ data: perfis }, { data: userPerms }] = await Promise.all([
-    supabase.from('usuarios_perfis').select('*, cargo:cargos(id, nome, cor, permissoes:cargo_permissoes(*))'),
-    supabase.from('usuario_permissoes').select('usuario_id'),
-  ])
-
-  const perfisMap = new Map((perfis ?? []).map((p) => [p.id, p]))
-  // ids de usuários que têm permissões customizadas
-  const customIds = new Set((userPerms ?? []).map((p) => p.usuario_id))
-
-  return authData.users.map((user) => {
-    const perfil = perfisMap.get(user.id)
-    return {
-      id: user.id,
-      email: user.email ?? '',
-      nome: perfil?.nome ?? user.email?.split('@')[0] ?? '',
-      perfil: (perfil?.perfil ?? 'vendas') as PerfilUsuario,
-      ativo: perfil?.ativo ?? true,
-      cargo_id: perfil?.cargo_id ?? null,
-      cargo: perfil?.cargo ?? null,
-      permissoes_customizadas: customIds.has(user.id),
-      created_at: user.created_at,
-    }
-  })
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Não autenticado')
+  return _cachedGetUsuarios(user.id)
 }
 
 export async function getPermissoesUsuario(userId: string): Promise<PermMap | null> {
@@ -83,6 +93,7 @@ export async function criarUsuario({
     cargo_id: cargo_id || null,
   })
   if (perfilError) throw new Error(perfilError.message)
+  revalidateTag('usuarios')
   revalidatePath('/usuarios')
 }
 
@@ -97,23 +108,20 @@ export async function atualizarPerfil(
     nome: string
     ativo: boolean
     cargo_id: string | null
-    permissoes: PermMap | null  // null = usar as do cargo (apaga customizações)
+    permissoes: PermMap | null
   }
 ) {
   await assertPermissao('usuarios', 'editar')
   const supabase = await createClient()
 
-  // Atualiza perfil
   const { error } = await supabase
     .from('usuarios_perfis')
     .upsert({ id, nome: nome.trim(), perfil: 'vendas', ativo, cargo_id: cargo_id || null })
   if (error) throw new Error(error.message)
 
   if (permissoes === null) {
-    // Remove permissões customizadas — vai usar as do cargo
     await supabase.from('usuario_permissoes').delete().eq('usuario_id', id)
   } else {
-    // Salva permissões customizadas
     const rows = MODULOS.map((m) => ({
       usuario_id: id,
       modulo: m.key,
@@ -125,6 +133,7 @@ export async function atualizarPerfil(
     if (permError) throw new Error(permError.message)
   }
 
+  revalidateTag('usuarios')
   revalidatePath('/usuarios')
 }
 
@@ -133,5 +142,6 @@ export async function deletarUsuario(id: string) {
   const admin = createAdminClient()
   const { error } = await admin.auth.admin.deleteUser(id)
   if (error) throw new Error(error.message)
+  revalidateTag('usuarios')
   revalidatePath('/usuarios')
 }

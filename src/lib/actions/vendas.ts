@@ -1,23 +1,33 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { assertPermissao } from '@/lib/auth'
 import type { Pedido } from '@/types'
 
+const _cachedGetVendas = unstable_cache(
+  async (_userId: string) => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select(`
+        *,
+        cliente:clientes(id, nome, tipo),
+        itens:pedido_itens(*, faca:facas(id, codigo, nome, preco_venda))
+      `)
+      .order('created_at', { ascending: false })
+    if (error) throw new Error(error.message)
+    return data as Pedido[]
+  },
+  ['vendas'],
+  { tags: ['vendas'] }
+)
+
 export async function getVendas(): Promise<Pedido[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('pedidos')
-    .select(`
-      *,
-      cliente:clientes(id, nome, tipo),
-      itens:pedido_itens(*, faca:facas(id, codigo, nome, preco_venda))
-    `)
-    .order('created_at', { ascending: false })
-
-  if (error) throw new Error(error.message)
-  return data as Pedido[]
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Não autenticado')
+  return _cachedGetVendas(user.id)
 }
 
 export async function gerarCodigoPedido(): Promise<string> {
@@ -81,6 +91,7 @@ export async function criarVenda(input: VendaInput) {
   )
   if (itemsError) throw new Error(itemsError.message)
 
+  revalidateTag('vendas')
   revalidatePath('/vendas')
 }
 
@@ -90,7 +101,6 @@ export async function atualizarVenda(id: string, input: VendaInput) {
 
   if (input.itens.length === 0) throw new Error('Adicione ao menos um item ao pedido.')
 
-  // Only orcamento orders can be edited
   const { data: pedido } = await supabase
     .from('pedidos')
     .select('status')
@@ -113,7 +123,6 @@ export async function atualizarVenda(id: string, input: VendaInput) {
     .eq('id', id)
   if (error) throw new Error(error.message)
 
-  // Delete existing items and re-insert
   await supabase.from('pedido_itens').delete().eq('pedido_id', id)
 
   const { error: itemsError } = await supabase.from('pedido_itens').insert(
@@ -126,6 +135,7 @@ export async function atualizarVenda(id: string, input: VendaInput) {
   )
   if (itemsError) throw new Error(itemsError.message)
 
+  revalidateTag('vendas')
   revalidatePath('/vendas')
 }
 
@@ -139,6 +149,7 @@ export async function avancarStatus(id: string, novoStatus: 'confirmado' | 'em_p
     .eq('id', id)
 
   if (error) throw new Error(error.message)
+  revalidateTag('vendas')
   revalidatePath('/vendas')
 }
 
@@ -146,7 +157,6 @@ export async function marcarEntregue(id: string) {
   await assertPermissao('vendas', 'editar')
   const supabase = await createClient()
 
-  // Get pedido with items
   const { data: pedido, error: pedidoErr } = await supabase
     .from('pedidos')
     .select('*, itens:pedido_itens(*)')
@@ -158,7 +168,6 @@ export async function marcarEntregue(id: string) {
 
   const itens = pedido.itens as { faca_id: string; quantidade: number }[]
 
-  // Check stock for each faca
   const facaIds = [...new Set(itens.map((i) => i.faca_id))]
   const { data: facas } = await supabase
     .from('facas')
@@ -182,19 +191,14 @@ export async function marcarEntregue(id: string) {
     throw new Error(`Estoque insuficiente: ${detalhes}`)
   }
 
-  // Get current user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Mark as entregue
   const { error: upErr } = await supabase
     .from('pedidos')
     .update({ status: 'entregue', entregue_at: new Date().toISOString() })
     .eq('id', id)
   if (upErr) throw new Error(upErr.message)
 
-  // Subtract facas.estoque_atual + register movements
   for (const item of itens) {
     const faca = facaMap.get(item.faca_id)!
     await supabase
@@ -211,7 +215,6 @@ export async function marcarEntregue(id: string) {
     })
   }
 
-  // Feed fila_reposicao via BOM
   const { data: boms } = await supabase
     .from('faca_materias_primas')
     .select('faca_id, materia_prima_id, quantidade, mp:materias_primas(id, fornecedor_id)')
@@ -221,7 +224,6 @@ export async function marcarEntregue(id: string) {
     const facaBom = (boms ?? []).filter((b) => b.faca_id === item.faca_id)
     for (const bom of facaBom) {
       const mp = (Array.isArray(bom.mp) ? bom.mp[0] : bom.mp) as { id: string; fornecedor_id: string | null }
-      // Inserts a reposição row even without supplier — OC module will handle grouping
       await supabase.from('fila_reposicao').insert({
         materia_prima_id: bom.materia_prima_id,
         fornecedor_id: mp.fornecedor_id,
@@ -231,6 +233,8 @@ export async function marcarEntregue(id: string) {
     }
   }
 
+  revalidateTag('vendas')
+  revalidateTag('facas')
   revalidatePath('/vendas')
   revalidatePath('/facas')
 }
@@ -254,6 +258,7 @@ export async function cancelarVenda(id: string) {
     .update({ status: 'cancelado' })
     .eq('id', id)
   if (error) throw new Error(error.message)
+  revalidateTag('vendas')
   revalidatePath('/vendas')
 }
 
@@ -273,5 +278,6 @@ export async function deletarVenda(id: string) {
 
   const { error } = await supabase.from('pedidos').delete().eq('id', id)
   if (error) throw new Error(error.message)
+  revalidateTag('vendas')
   revalidatePath('/vendas')
 }

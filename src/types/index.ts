@@ -185,6 +185,53 @@ export const CATEGORIAS_FACA = [
 
 export type CategoriaFaca = (typeof CATEGORIAS_FACA)[number]
 
+// ============================================================
+// Ordens de Compra
+// ============================================================
+
+export type StatusOC = 'pendente' | 'enviada' | 'recebida'
+
+export const STATUS_OC: Record<StatusOC, { label: string; color: string; bg: string; border: string }> = {
+  pendente: { label: 'Pendente', color: '#b45309', bg: '#fef3c7', border: '#fde68a' },
+  enviada:  { label: 'Enviada',  color: '#1d4ed8', bg: '#dbeafe', border: '#bfdbfe' },
+  recebida: { label: 'Recebida', color: '#15803d', bg: '#dcfce7', border: '#bbf7d0' },
+}
+
+export type OrdemCompraItem = {
+  id: string
+  ordem_compra_id: string
+  materia_prima_id: string
+  quantidade: number
+  preco_unitario: number | null
+  materia_prima?: Pick<MateriaPrima, 'id' | 'codigo' | 'nome'>
+}
+
+export type OrdemCompra = {
+  id: string
+  codigo: string
+  fornecedor_id: string | null
+  status: StatusOC
+  data_geracao: string
+  observacao: string | null
+  created_at: string
+  fornecedor?: Pick<Fornecedor, 'id' | 'nome'> | null
+  itens?: OrdemCompraItem[]
+}
+
+export type FilaItemAgrupado = {
+  materia_prima_id: string
+  mp_codigo: string
+  mp_nome: string
+  mp_preco_custo: number
+  quantidade_total: number
+}
+
+export type FilaFornecedor = {
+  fornecedor_id: string | null
+  fornecedor_nome: string
+  itens: FilaItemAgrupado[]
+}
+
 export type CategoriaFacaDB = {
   id: string
   nome: string

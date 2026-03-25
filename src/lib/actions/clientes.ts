@@ -1,19 +1,26 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { assertPermissao } from '@/lib/auth'
 import type { Cliente } from '@/types'
 
+const _cachedGetClientes = unstable_cache(
+  async (_userId: string) => {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('clientes').select('*').order('nome')
+    if (error) throw new Error(error.message)
+    return data as Cliente[]
+  },
+  ['clientes'],
+  { tags: ['clientes'] }
+)
+
 export async function getClientes(): Promise<Cliente[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('clientes')
-    .select('*')
-    .order('nome')
-
-  if (error) throw new Error(error.message)
-  return data as Cliente[]
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Não autenticado')
+  return _cachedGetClientes(user.id)
 }
 
 type ClienteInput = {
@@ -37,6 +44,7 @@ export async function criarCliente(input: ClienteInput) {
     estado: input.estado.trim() || null,
   })
   if (error) throw new Error(error.message)
+  revalidateTag('clientes')
   revalidatePath('/clientes')
 }
 
@@ -55,6 +63,7 @@ export async function atualizarCliente(id: string, input: ClienteInput) {
     })
     .eq('id', id)
   if (error) throw new Error(error.message)
+  revalidateTag('clientes')
   revalidatePath('/clientes')
   revalidatePath('/vendas')
 }
@@ -75,5 +84,6 @@ export async function deletarCliente(id: string) {
 
   const { error } = await supabase.from('clientes').delete().eq('id', id)
   if (error) throw new Error(error.message)
+  revalidateTag('clientes')
   revalidatePath('/clientes')
 }

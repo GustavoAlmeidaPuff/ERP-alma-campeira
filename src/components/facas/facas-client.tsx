@@ -5,21 +5,19 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { FacaModal } from './faca-modal'
 import { deletarFaca } from '@/lib/actions/facas'
-import type { Faca } from '@/types'
+import type { Faca, CategoriaFacaDB } from '@/types'
 
 type Perm = { ver: boolean; criar: boolean; editar: boolean; deletar: boolean }
-type Props = { facas: Faca[]; perm: Perm }
+type Props = { facas: Faca[]; categorias: CategoriaFacaDB[]; perm: Perm }
 
-const badgeCategoria: Record<string, React.CSSProperties> = {
-  Gauchesca:  { color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a' },
-  Utilitária: { color: '#1e40af', background: '#dbeafe', border: '1px solid #bfdbfe' },
-  Decorativa: { color: '#6b21a8', background: '#f3e8ff', border: '1px solid #e9d5ff' },
-  Cozinha:    { color: '#065f46', background: '#d1fae5', border: '1px solid #a7f3d0' },
-  Esportiva:  { color: '#9f1239', background: '#ffe4e6', border: '1px solid #fecdd3' },
-  Outro:      { color: '#374151', background: '#f3f4f6', border: '1px solid #e5e7eb' },
-}
-
-export function FacasClient({ facas, perm }: Props) {
+export function FacasClient({ facas, categorias, perm }: Props) {
+  const badgeCategoria = useMemo(() => {
+    const map: Record<string, React.CSSProperties> = {}
+    for (const cat of categorias) {
+      map[cat.nome] = { color: cat.cor_texto, background: cat.cor_fundo, border: `1px solid ${cat.cor_borda}` }
+    }
+    return map
+  }, [categorias])
   const [modalAberto, setModalAberto] = useState(false)
   const [editando, setEditando] = useState<Faca | null>(null)
   const [deletando, setDeletando] = useState<Faca | null>(null)
@@ -218,7 +216,7 @@ export function FacasClient({ facas, perm }: Props) {
         </div>
       </div>
 
-      <FacaModal open={modalAberto} onClose={() => setModalAberto(false)} editando={editando} />
+      <FacaModal open={modalAberto} onClose={() => setModalAberto(false)} editando={editando} categorias={categorias} />
 
       <Modal open={!!deletando} onClose={() => setDeletando(null)} title="Excluir faca">
         <div className="flex flex-col gap-4">
