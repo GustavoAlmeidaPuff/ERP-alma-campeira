@@ -268,16 +268,141 @@ function TabPane({ href }: { href: string }) {
   }
 }
 
+const HOLD_MS = 180
+
+type DragState = {
+  href: string
+  index: number
+  startX: number
+  currentX: number
+  tabWidths: number[]
+  tabOffsets: number[]
+  dropIndex: number
+}
+
 function ErpTabsContent() {
   const { openTabs, activeHref, selectTab, closeTab, reorderTabs } = useErpTabs()
-  const pathname = usePathname()
 
-  useEffect(() => {
-    if (LOG) console.log('[TABS] active changed', { activeHref, pathname })
-  }, [activeHref, pathname])
+  const containerRef = useRef<HTMLDivElement>(null)
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [drag, setDrag] = useState<DragState | null>(null)
+  const dragRef = useRef<DragState | null>(null)
+  const didDragRef = useRef(false)
 
-  const dragHrefRef = useRef<string | null>(null)
-  const draggingRef = useRef(false)
+  const clearHold = useCallback(() => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current)
+      holdTimerRef.current = null
+    }
+  }, [])
+
+  const commitDrag = useCallback(() => {
+    const d = dragRef.current
+    if (!d) return
+    if (d.index !== d.dropIndex) {
+      reorderTabs(openTabs[d.index].href, openTabs[d.dropIndex].href)
+    }
+    dragRef.current = null
+    setDrag(null)
+  }, [openTabs, reorderTabs])
+
+  const calcDropIndex = useCallback((d: DragState, clientX: number): number => {
+    const dx = clientX - d.startX
+    const draggedCenter = d.tabOffsets[d.index] + d.tabWidths[d.index] / 2 + dx
+
+    let best = d.index
+    let bestDist = Infinity
+    for (let i = 0; i < d.tabOffsets.length; i++) {
+      const center = d.tabOffsets[i] + d.tabWidths[i] / 2
+      const dist = Math.abs(draggedCenter - center)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = i
+      }
+    }
+    return best
+  }, [])
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent, href: string, index: number) => {
+      if (e.button !== 0) return
+      const closeBtnParent = (e.target as HTMLElement).closest('[data-tab-close]')
+      if (closeBtnParent) return
+
+      const startX = e.clientX
+      const pointerId = e.pointerId
+
+      clearHold()
+      didDragRef.current = false
+
+      holdTimerRef.current = setTimeout(() => {
+        holdTimerRef.current = null
+        didDragRef.current = true
+
+        const container = containerRef.current
+        if (!container) return
+
+        const tabEls = Array.from(container.querySelectorAll('[data-tab-item]')) as HTMLElement[]
+        const tabWidths = tabEls.map((el) => el.offsetWidth)
+        const tabOffsets = tabEls.map((el) => el.offsetLeft)
+
+        const state: DragState = {
+          href,
+          index,
+          startX,
+          currentX: startX,
+          tabWidths,
+          tabOffsets,
+          dropIndex: index,
+        }
+
+        dragRef.current = state
+        setDrag(state)
+
+        try { container.setPointerCapture(pointerId) } catch { /* ok */ }
+      }, HOLD_MS)
+    },
+    [clearHold]
+  )
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const d = dragRef.current
+      if (!d) return
+
+      const dropIndex = calcDropIndex(d, e.clientX)
+      const next: DragState = { ...d, currentX: e.clientX, dropIndex }
+      dragRef.current = next
+      setDrag(next)
+    },
+    [calcDropIndex]
+  )
+
+  const onPointerUp = useCallback(() => {
+    clearHold()
+    if (dragRef.current) {
+      commitDrag()
+    }
+  }, [clearHold, commitDrag])
+
+  const getTabTransform = useCallback(
+    (index: number) => {
+      if (!drag) return undefined
+      if (index === drag.index) {
+        const dx = drag.currentX - drag.startX
+        return `translateX(${dx}px)`
+      }
+
+      const { index: from, dropIndex: to, tabWidths } = drag
+      const w = tabWidths[from]
+
+      if (from < to && index > from && index <= to) return `translateX(${-w - 4}px)`
+      if (from > to && index < from && index >= to) return `translateX(${w + 4}px)`
+
+      return undefined
+    },
+    [drag]
+  )
 
   return (
     <div>
@@ -289,60 +414,44 @@ function ErpTabsContent() {
             background: 'color-mix(in srgb, var(--ac-bg) 92%, var(--ac-sidebar) 8%)',
           }}
         >
-          <div className="flex items-center gap-1 overflow-x-auto px-2 py-2 sm:px-4">
-            {openTabs.map((tab) => {
+          <div
+            ref={containerRef}
+            className="flex items-center gap-1 overflow-x-auto px-2 py-2 sm:px-4"
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerLeave={onPointerUp}
+            style={{ touchAction: drag ? 'none' : undefined, userSelect: drag ? 'none' : undefined }}
+          >
+            {openTabs.map((tab, i) => {
               const isActive = tab.href === activeHref
               const tabIcon = getRouteIcon(tab.href)
+              const isDragged = drag?.index === i
+              const transform = getTabTransform(i)
+
               return (
                 <div
                   key={tab.href}
+                  data-tab-item
                   className="flex min-w-0 flex-shrink-0 items-center gap-2 rounded-md border pl-3 pr-1 py-1.5"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    const fromHref = e.dataTransfer.getData('text/plain') || dragHrefRef.current
-                    dragHrefRef.current = null
-                    draggingRef.current = false
-                    if (fromHref) reorderTabs(fromHref, tab.href)
-                  }}
+                  onPointerDown={(e) => onPointerDown(e, tab.href, i)}
                   style={{
                     borderColor: isActive ? 'var(--ac-accent)' : 'var(--ac-border)',
                     background: isActive
                       ? 'color-mix(in srgb, var(--ac-accent) 10%, transparent)'
                       : 'color-mix(in srgb, var(--ac-sidebar) 45%, transparent)',
+                    transform,
+                    transition: isDragged ? 'none' : 'transform 200ms cubic-bezier(.2,.8,.32,1)',
+                    zIndex: isDragged ? 50 : undefined,
+                    opacity: isDragged ? 0.85 : undefined,
+                    cursor: drag ? 'grabbing' : undefined,
+                    boxShadow: isDragged ? '0 4px 16px rgba(0,0,0,.18)' : undefined,
+                    willChange: drag ? 'transform' : undefined,
                   }}
                 >
                   <button
                     type="button"
-                    draggable
-                    aria-label={`Arrastar aba ${tab.label}`}
-                    title="Arrastar para reordenar"
-                    onDragStart={(e) => {
-                      draggingRef.current = true
-                      dragHrefRef.current = tab.href
-                      e.dataTransfer.setData('text/plain', tab.href)
-                      e.dataTransfer.effectAllowed = 'move'
-                    }}
-                    onDragEnd={() => {
-                      draggingRef.current = false
-                      dragHrefRef.current = null
-                    }}
-                    className="flex-shrink-0 rounded p-1 transition-colors cursor-move"
-                    style={{ color: 'var(--ac-muted)' }}
-                    onClick={(e) => {
-                      // Evita clique "acidental" após arrastar
-                      if (draggingRef.current) e.preventDefault()
-                    }}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-3.5">
-                      <path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" strokeLinecap="round" />
-                    </svg>
-                  </button>
-
-                  <button
-                    type="button"
                     onClick={() => {
-                      if (draggingRef.current) return
+                      if (didDragRef.current) return
                       selectTab(tab.href)
                     }}
                     className="flex min-w-0 items-center gap-2"
@@ -359,11 +468,9 @@ function ErpTabsContent() {
 
                   <button
                     type="button"
+                    data-tab-close
                     aria-label={`Fechar aba ${tab.label}`}
-                    onClick={() => {
-                      if (draggingRef.current) return
-                      closeTab(tab.href)
-                    }}
+                    onClick={() => closeTab(tab.href)}
                     className="rounded p-1 transition-colors hover:opacity-80"
                     style={{ color: 'var(--ac-muted)' }}
                   >
@@ -382,7 +489,6 @@ function ErpTabsContent() {
       <div>
         {openTabs.map((tab) => (
           <div key={tab.href} style={{ display: tab.href === activeHref ? 'block' : 'none' }}>
-            {/* Mantém montado: só alterna visibilidade. */}
             <TabPane href={tab.href} />
           </div>
         ))}
