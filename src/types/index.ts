@@ -56,7 +56,7 @@ export const MODULOS = [
   { key: 'fornecedores',    label: 'Fornecedores' },
   { key: 'facas',           label: 'Facas' },
   { key: 'estoque',         label: 'Estoque / Produção' },
-  { key: 'vendas',          label: 'Vendas / Pedidos' },
+  { key: 'vendas',          label: 'Vendas' },
   { key: 'clientes',        label: 'Clientes' },
   { key: 'ordens_compra',   label: 'Ordens de Compra' },
   { key: 'usuarios',        label: 'Usuários' },

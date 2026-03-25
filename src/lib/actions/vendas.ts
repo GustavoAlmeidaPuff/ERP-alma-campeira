@@ -52,7 +52,7 @@ export async function criarVenda(input: VendaInput) {
   await assertPermissao('vendas', 'criar')
   const supabase = await createClient()
 
-  if (input.itens.length === 0) throw new Error('Adicione ao menos um item ao pedido.')
+  if (input.itens.length === 0) throw new Error('Adicione ao menos um item à venda.')
 
   const codigo = await gerarCodigoPedido()
   const valor_total = input.itens.reduce((s, i) => s + i.quantidade * i.preco_unitario, 0)
@@ -89,7 +89,7 @@ export async function atualizarVenda(id: string, input: VendaInput) {
   await assertPermissao('vendas', 'editar')
   const supabase = await createClient()
 
-  if (input.itens.length === 0) throw new Error('Adicione ao menos um item ao pedido.')
+  if (input.itens.length === 0) throw new Error('Adicione ao menos um item à venda.')
 
   const { data: pedido } = await supabase
     .from('pedidos')
@@ -151,8 +151,8 @@ export async function marcarEntregue(id: string) {
     .eq('id', id)
     .single()
 
-  if (pedidoErr || !pedido) throw new Error('Pedido não encontrado.')
-  if (pedido.status !== 'em_producao') throw new Error('O pedido precisa estar "Em Produção" para ser entregue.')
+  if (pedidoErr || !pedido) throw new Error('Venda não encontrada.')
+  if (pedido.status !== 'em_producao') throw new Error('A venda precisa estar "Em Produção" para ser entregue.')
 
   const itens = pedido.itens as { faca_id: string; quantidade: number }[]
 
@@ -236,7 +236,7 @@ export async function cancelarVenda(id: string) {
     .single()
 
   if (pedido?.status === 'entregue') {
-    throw new Error('Pedidos já entregues não podem ser cancelados.')
+    throw new Error('Vendas já entregues não podem ser canceladas.')
   }
 
   const { error } = await supabase

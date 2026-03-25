@@ -603,7 +603,7 @@ export function OcClient({ fila, ordens, perm }: Props) {
               </svg>
               <p className="font-semibold mb-1" style={{ color: 'var(--ac-text)' }}>Fila vazia</p>
               <p className="text-sm" style={{ color: 'var(--ac-muted)' }}>
-                Quando pedidos forem marcados como entregues, as matérias-primas aparecerão aqui.
+                Quando vendas forem marcadas como entregues, as matérias-primas aparecerão aqui.
               </p>
             </div>
           ) : (

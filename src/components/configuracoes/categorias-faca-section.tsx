@@ -1,82 +1,75 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { criarCategoriaFaca, atualizarCategoriaFaca, deletarCategoriaFaca } from '@/lib/actions/categorias-faca'
+import {
+  inferirCorBaseParaEdicao,
+  paletaCategoriaDeCorBase,
+  type PaletaCategoria,
+} from '@/lib/categoria-faca-paleta'
 import type { CategoriaFacaDB } from '@/types'
 
 type FormCat = {
   nome: string
-  cor_texto: string
-  cor_fundo: string
-  cor_borda: string
+  corBase: string
 }
+
+const PRESET_CORES = [
+  '#991b1b',
+  '#dc2626',
+  '#ef4444',
+  '#f97316',
+  '#ea580c',
+  '#fb923c',
+  '#ca8a04',
+  '#f59e0b',
+  '#facc15',
+  '#65a30d',
+  '#16a34a',
+  '#22c55e',
+  '#059669',
+  '#0d9488',
+  '#06b6d4',
+  '#0284c7',
+  '#0ea5e9',
+  '#3b82f6',
+  '#2563eb',
+  '#1d4ed8',
+  '#4f46e5',
+  '#6366f1',
+  '#8b5cf6',
+  '#7c3aed',
+  '#a855f7',
+  '#c026d3',
+  '#db2777',
+  '#ec4899',
+  '#be123c',
+  '#334155',
+  '#64748b',
+  '#94a3b8',
+  '#111827',
+] as const
 
 const formVazio: FormCat = {
   nome: '',
-  cor_texto: '#374151',
-  cor_fundo: '#f3f4f6',
-  cor_borda: '#e5e7eb',
+  corBase: '#2563eb',
 }
 
-function CategoriaBadgePreview({ form }: { form: FormCat }) {
+function CategoriaBadgePreview({ nome, paleta }: { nome: string; paleta: PaletaCategoria }) {
   return (
     <span
       className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
       style={{
-        color: form.cor_texto,
-        background: form.cor_fundo,
-        border: `1px solid ${form.cor_borda}`,
+        color: paleta.cor_texto,
+        background: paleta.cor_fundo,
+        border: `1px solid ${paleta.cor_borda}`,
       }}
     >
-      {form.nome || 'Preview'}
+      {nome || 'Preview'}
     </span>
-  )
-}
-
-function ColorField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium" style={{ color: 'var(--ac-muted)' }}>{label}</label>
-      <div className="flex items-center gap-2">
-        <div className="relative size-9 rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid var(--ac-border)' }}>
-          <input
-            type="color"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
-          />
-          <div className="size-full rounded-lg" style={{ background: value }} />
-        </div>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => {
-            const v = e.target.value
-            if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onChange(v)
-          }}
-          className="flex-1 rounded-lg px-3 py-2 text-sm font-mono outline-none transition-all"
-          style={{
-            background: 'var(--ac-bg)',
-            border: '1px solid var(--ac-border)',
-            color: 'var(--ac-text)',
-          }}
-          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ac-accent)' }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ac-border)' }}
-          maxLength={7}
-        />
-      </div>
-    </div>
   )
 }
 
@@ -95,6 +88,14 @@ export function CategoriasFacaSection({ categorias }: Props) {
   const [loadingDelete, setLoadingDelete] = useState(false)
   const [erroDelete, setErroDelete] = useState('')
 
+  const corBaseUi = useMemo(() => {
+    const raw = form.corBase.trim()
+    const base = raw.startsWith('#') ? raw : `#${raw}`
+    return /^#[0-9a-fA-F]{6}$/.test(base) ? base.toLowerCase() : '#2563eb'
+  }, [form.corBase])
+
+  const paletaPreview = useMemo(() => paletaCategoriaDeCorBase(corBaseUi), [corBaseUi])
+
   function set(field: keyof FormCat, value: string) {
     setForm((f) => ({ ...f, [field]: value }))
   }
@@ -108,7 +109,10 @@ export function CategoriasFacaSection({ categorias }: Props) {
 
   function abrirEditar(cat: CategoriaFacaDB) {
     setEditando(cat)
-    setForm({ nome: cat.nome, cor_texto: cat.cor_texto, cor_fundo: cat.cor_fundo, cor_borda: cat.cor_borda })
+    setForm({
+      nome: cat.nome,
+      corBase: inferirCorBaseParaEdicao(cat),
+    })
     setErro('')
     setModalAberto(true)
   }
@@ -117,16 +121,18 @@ export function CategoriasFacaSection({ categorias }: Props) {
     e.preventDefault()
     setErro('')
     if (!form.nome.trim()) { setErro('Nome é obrigatório.'); return }
-    if (!/^#[0-9a-fA-F]{6}$/.test(form.cor_texto)) { setErro('Cor do texto inválida.'); return }
-    if (!/^#[0-9a-fA-F]{6}$/.test(form.cor_fundo)) { setErro('Cor de fundo inválida.'); return }
-    if (!/^#[0-9a-fA-F]{6}$/.test(form.cor_borda)) { setErro('Cor da borda inválida.'); return }
+    const base = form.corBase.trim().startsWith('#') ? form.corBase.trim() : `#${form.corBase.trim()}`
+    if (!/^#[0-9a-fA-F]{6}$/.test(base)) { setErro('Escolha uma cor válida.'); return }
+
+    const paleta = paletaCategoriaDeCorBase(base)
+    const payload = { nome: form.nome.trim(), ...paleta }
 
     setLoading(true)
     try {
       if (editando) {
-        await atualizarCategoriaFaca(editando.id, form)
+        await atualizarCategoriaFaca(editando.id, payload)
       } else {
-        await criarCategoriaFaca(form)
+        await criarCategoriaFaca(payload)
       }
       setModalAberto(false)
       router.refresh()
@@ -204,22 +210,14 @@ export function CategoriasFacaSection({ categorias }: Props) {
                   {cat.nome}
                 </span>
 
-                {/* Color dots */}
-                <div className="flex items-center gap-1.5 ml-auto">
+                <div className="ml-auto flex items-center">
                   <div
-                    title={`Texto: ${cat.cor_texto}`}
-                    className="size-4 rounded-full flex-shrink-0"
-                    style={{ background: cat.cor_texto, border: '2px solid var(--ac-border)' }}
-                  />
-                  <div
-                    title={`Fundo: ${cat.cor_fundo}`}
-                    className="size-4 rounded-full flex-shrink-0"
-                    style={{ background: cat.cor_fundo, border: '2px solid var(--ac-border)' }}
-                  />
-                  <div
-                    title={`Borda: ${cat.cor_borda}`}
-                    className="size-4 rounded-full flex-shrink-0"
-                    style={{ background: cat.cor_borda, border: '2px solid var(--ac-border)' }}
+                    title="Cor da categoria"
+                    className="size-7 rounded-full flex-shrink-0 shadow-inner"
+                    style={{
+                      background: inferirCorBaseParaEdicao(cat),
+                      border: '2px solid var(--ac-border)',
+                    }}
                   />
                 </div>
 
@@ -282,20 +280,46 @@ export function CategoriasFacaSection({ categorias }: Props) {
             />
           </div>
 
-          {/* Colors */}
-          <div className="grid grid-cols-3 gap-3">
-            <ColorField label="Cor do texto" value={form.cor_texto} onChange={(v) => set('cor_texto', v)} />
-            <ColorField label="Cor de fundo" value={form.cor_fundo} onChange={(v) => set('cor_fundo', v)} />
-            <ColorField label="Cor da borda" value={form.cor_borda} onChange={(v) => set('cor_borda', v)} />
+          {/* Uma cor: o sistema monta texto, fundo e borda automaticamente */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium" style={{ color: 'var(--ac-text)' }}>Cor da categoria</label>
+            <p className="text-xs" style={{ color: 'var(--ac-muted)' }}>
+              Escolha uma cor. O badge usa automaticamente tons claros para o fundo, escuro para o texto e uma borda harmoniosa.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {PRESET_CORES.map((hex) => (
+                <button
+                  key={hex}
+                  type="button"
+                  title={hex}
+                  onClick={() => set('corBase', hex)}
+                  className="size-9 rounded-lg border-2 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  style={{
+                    background: hex,
+                    borderColor: corBaseUi === hex.toLowerCase() ? 'var(--ac-accent)' : 'var(--ac-border)',
+                    boxShadow: corBaseUi === hex.toLowerCase() ? '0 0 0 2px color-mix(in srgb, var(--ac-accent) 35%, transparent)' : undefined,
+                  }}
+                />
+              ))}
+              <label className="relative size-9 rounded-lg overflow-hidden border-2 flex-shrink-0 cursor-pointer" style={{ borderColor: 'var(--ac-border)' }}>
+                <span className="sr-only">Outra cor</span>
+                <input
+                  type="color"
+                  value={corBaseUi}
+                  onChange={(e) => set('corBase', e.target.value)}
+                  className="absolute inset-0 w-[150%] h-[150%] -translate-x-1/4 -translate-y-1/4 cursor-pointer"
+                />
+              </label>
+            </div>
           </div>
 
           {/* Preview */}
           <div
-            className="flex items-center gap-3 px-4 py-3 rounded-lg"
+            className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-lg"
             style={{ background: 'var(--ac-bg)', border: '1px solid var(--ac-border)' }}
           >
-            <span className="text-xs font-medium" style={{ color: 'var(--ac-muted)' }}>Preview:</span>
-            <CategoriaBadgePreview form={form} />
+            <span className="text-xs font-medium shrink-0" style={{ color: 'var(--ac-muted)' }}>Preview</span>
+            <CategoriaBadgePreview nome={form.nome} paleta={paletaPreview} />
           </div>
 
           {erro && (

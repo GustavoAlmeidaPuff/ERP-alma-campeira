@@ -39,7 +39,7 @@ export function VendaDetalheModal({ pedido, onClose, perm }: Props) {
     <Modal
       open={!!pedido}
       onClose={onClose}
-      title={`Pedido ${pedido.codigo}`}
+      title={`Venda ${pedido.codigo}`}
       width="600px"
     >
       <div className="flex flex-col gap-5">
@@ -140,7 +140,7 @@ export function VendaDetalheModal({ pedido, onClose, perm }: Props) {
                   loading={loading === 'cancelar'}
                   onClick={() => acao(() => cancelarVenda(pedido.id), 'cancelar')}
                 >
-                  Cancelar pedido
+                  Cancelar venda
                 </Button>
               )}
             </div>
@@ -154,7 +154,7 @@ export function VendaDetalheModal({ pedido, onClose, perm }: Props) {
                   onClick={() => acao(() => avancarStatus(pedido.id, 'confirmado'), 'confirmar')}
                   style={{ background: '#1d4ed8', color: '#fff', border: 'none' }}
                 >
-                  Confirmar pedido
+                  Confirmar venda
                 </Button>
               )}
               {pedido.status === 'confirmado' && (

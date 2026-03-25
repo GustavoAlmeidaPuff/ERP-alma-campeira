@@ -68,7 +68,7 @@ export async function deletarCliente(id: string) {
     .limit(1)
 
   if (uso && uso.length > 0) {
-    throw new Error('Este cliente possui pedidos vinculados e não pode ser excluído.')
+    throw new Error('Este cliente possui vendas vinculadas e não pode ser excluído.')
   }
 
   const { error } = await supabase.from('clientes').delete().eq('id', id)

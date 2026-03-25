@@ -124,7 +124,7 @@ export function VendaFormModal({ open, onClose, editando, clientes, facas }: Pro
     <Modal
       open={open}
       onClose={onClose}
-      title={editando ? `Editar pedido ${editando.codigo}` : 'Novo pedido'}
+      title={editando ? `Editar venda ${editando.codigo}` : 'Nova venda'}
       width="700px"
     >
       <div className="flex flex-col gap-5">
@@ -148,7 +148,7 @@ export function VendaFormModal({ open, onClose, editando, clientes, facas }: Pro
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ac-muted)' }}>Data do pedido</label>
+            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ac-muted)' }}>Data da venda</label>
             <input
               type="date"
               value={dataPedido}
@@ -179,7 +179,7 @@ export function VendaFormModal({ open, onClose, editando, clientes, facas }: Pro
         {/* Itens */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ac-muted)' }}>Itens do pedido</label>
+            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ac-muted)' }}>Itens da venda</label>
             <button
               onClick={addItem}
               className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors"
@@ -289,7 +289,7 @@ export function VendaFormModal({ open, onClose, editando, clientes, facas }: Pro
 
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button loading={loading} onClick={salvar}>{editando ? 'Salvar' : 'Criar pedido'}</Button>
+          <Button loading={loading} onClick={salvar}>{editando ? 'Salvar' : 'Criar venda'}</Button>
         </div>
       </div>
     </Modal>

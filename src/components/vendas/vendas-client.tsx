@@ -77,7 +77,7 @@ export function VendasClient({ pedidos, clientes, facas, perm }: Props) {
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Vendas</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ac-muted)' }}>
-            {pedidos.filter(p => p.status !== 'cancelado' && p.status !== 'entregue').length} pedidos em aberto
+            {pedidos.filter(p => p.status !== 'cancelado' && p.status !== 'entregue').length} vendas em aberto
           </p>
         </div>
         {perm.criar && (
@@ -85,7 +85,7 @@ export function VendasClient({ pedidos, clientes, facas, perm }: Props) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="size-4">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Novo pedido
+            Nova venda
           </Button>
         )}
       </div>
@@ -155,7 +155,7 @@ export function VendasClient({ pedidos, clientes, facas, perm }: Props) {
               {filtrados.length === 0 && (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-sm" style={{ color: 'var(--ac-muted)' }}>
-                    {busca || filtroStatus !== 'todos' ? 'Nenhum pedido para esse filtro.' : 'Nenhum pedido cadastrado ainda.'}
+                    {busca || filtroStatus !== 'todos' ? 'Nenhuma venda para esse filtro.' : 'Nenhuma venda cadastrada ainda.'}
                   </td>
                 </tr>
               )}
@@ -201,7 +201,7 @@ export function VendasClient({ pedidos, clientes, facas, perm }: Props) {
                           style={{ color: 'var(--ac-muted)' }}
                           onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--ac-border)'; e.currentTarget.style.color = 'var(--ac-text)' }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ac-muted)' }}
-                          title="Ver pedido">
+                          title="Ver venda">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-4">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                             <circle cx="12" cy="12" r="3" />
@@ -262,10 +262,10 @@ export function VendasClient({ pedidos, clientes, facas, perm }: Props) {
       />
 
       {/* Confirmar exclusão */}
-      <Modal open={!!deletando} onClose={() => setDeletando(null)} title="Excluir pedido">
+      <Modal open={!!deletando} onClose={() => setDeletando(null)} title="Excluir venda">
         <div className="flex flex-col gap-4">
           <p className="text-sm" style={{ color: 'var(--ac-text)' }}>
-            Tem certeza que deseja excluir o pedido <strong>{deletando?.codigo}</strong>? Esta ação não pode ser desfeita.
+            Tem certeza que deseja excluir a venda <strong>{deletando?.codigo}</strong>? Esta ação não pode ser desfeita.
           </p>
           {erroDelete && (
             <p className="text-sm rounded-lg px-3 py-2" style={{ color: '#dc2626', background: '#fee2e2' }}>{erroDelete}</p>
