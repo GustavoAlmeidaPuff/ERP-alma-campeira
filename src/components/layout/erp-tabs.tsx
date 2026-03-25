@@ -76,14 +76,13 @@ function TabSkeleton({ title }: { title: string }) {
   )
 }
 
-function TabPane({ href, active }: { href: string; active: boolean }) {
+function TabPane({ href }: { href: string }) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [data, setData] = useState<ErpTabData | null>(null)
   const [errMsg, setErrMsg] = useState<string>('')
 
-  const mountedRef = useRef(false)
   useEffect(() => {
-    if (LOG) console.log('[TABS] TabPane mounted', { href, active })
+    if (LOG) console.log('[TABS] TabPane mounted', { href })
     return () => {
       if (LOG) console.log('[TABS] TabPane unmounted', { href })
     }
@@ -94,7 +93,7 @@ function TabPane({ href, active }: { href: string; active: boolean }) {
     let cancelled = false
     async function run() {
       try {
-        if (LOG) console.log('[TABS] fetch start', { href, active })
+        if (LOG) console.log('[TABS] fetch start', { href })
         setStatus('loading')
         setData(null)
         setErrMsg('')
@@ -165,9 +164,6 @@ function ErpTabsContent() {
   }, [activeHref, pathname])
 
   const dragHrefRef = useRef<string | null>(null)
-  const [hydrated, setHydrated] = useState(false)
-
-  useEffect(() => setHydrated(true), [])
 
   return (
     <div>
@@ -244,8 +240,8 @@ function ErpTabsContent() {
       <div>
         {openTabs.map((tab) => (
           <div key={tab.href} style={{ display: tab.href === activeHref ? 'block' : 'none' }}>
-            {/* Manter montado: não desmontamos o componente, só escondemos. */}
-            {hydrated ? <TabPane href={tab.href} active={tab.href === activeHref} /> : null}
+            {/* Mantém montado: só alterna visibilidade. */}
+            <TabPane href={tab.href} />
           </div>
         ))}
       </div>
@@ -262,24 +258,22 @@ export function ErpTabsProvider({ children }: ErpTabsProviderProps) {
   const initialHref = useMemo(() => normalizeHref(pathname), [pathname])
   const initialLabel = useMemo(() => getRouteLabel(initialHref), [initialHref])
 
-  const [openTabs, setOpenTabs] = useState<OpenTab[]>([{ href: initialHref, label: initialLabel }])
-  const [activeHref, setActiveHref] = useState<string>(initialHref)
+  const [openTabs, setOpenTabs] = useState<OpenTab[]>(() => {
+    const base = [{ href: initialHref, label: initialLabel }]
+    if (typeof window === 'undefined') return base
 
-  useEffect(() => {
-    try {
-      const storedTabs = parseStoredTabs(localStorage.getItem(STORAGE_KEY))
-      const storedActive = localStorage.getItem(ACTIVE_KEY)
+    const storedTabs = parseStoredTabs(localStorage.getItem(STORAGE_KEY))
+    return storedTabs.length ? storedTabs : base
+  })
 
-      if (storedTabs.length > 0) {
-        const normalized = storedTabs.map((t) => ({ ...t, href: normalizeHref(t.href), label: t.label }))
-        setOpenTabs(normalized)
-        const normalizedActive = storedActive ? normalizeHref(storedActive) : normalized[0]?.href
-        if (normalizedActive) setActiveHref(normalizedActive)
-      }
-    } catch {
-      // ignore
-    }
-  }, [])
+  const [activeHref, setActiveHref] = useState<string>(() => {
+    if (typeof window === 'undefined') return initialHref
+
+    const storedTabs = parseStoredTabs(localStorage.getItem(STORAGE_KEY))
+    const storedActive = localStorage.getItem(ACTIVE_KEY)
+    const normalizedActive = storedActive ? normalizeHref(storedActive) : storedTabs[0]?.href
+    return normalizedActive || initialHref
+  })
 
   const persist = useCallback((tabs: OpenTab[], active: string) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tabs))

@@ -3,7 +3,7 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { ErpTabs, ErpTabsProvider } from '@/components/layout/erp-tabs'
 import { getAuthenticatedUser } from '@/lib/auth'
 
-export default async function ErpLayout({ children }: { children: React.ReactNode }) {
+export default async function ErpLayout() {
   const user = await getAuthenticatedUser()
 
   if (!user) redirect('/login')
