@@ -73,7 +73,7 @@ const sections: NavSection[] = [
     label: 'Compras',
     items: [
       { href: '/fornecedores', label: 'Fornecedores', available: true, icon: iconFornecedor },
-      { href: '/ordens-compra', label: 'Ordens de Compra', available: false, icon: iconOC },
+      { href: '/ordens-compra', label: 'Ordens de Compra', available: true, icon: iconOC },
     ],
   },
   {

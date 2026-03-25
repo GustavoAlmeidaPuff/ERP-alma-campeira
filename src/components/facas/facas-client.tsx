@@ -36,7 +36,7 @@ export function FacasClient({ facas, categorias, perm }: Props) {
     })
   }, [facas, busca, filtroCategoria])
 
-  const categorias = useMemo(() => [...new Set(facas.map((f) => f.categoria))].sort(), [facas])
+  const categoriasDisponiveis = useMemo(() => [...new Set(facas.map((f) => f.categoria))].sort(), [facas])
 
   function abrirNovo() { setEditando(null); setModalAberto(true) }
   function abrirEditar(f: Faca) { setEditando(f); setModalAberto(true) }
@@ -109,7 +109,7 @@ export function FacasClient({ facas, categorias, perm }: Props) {
           onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ac-border)' }}
         >
           <option value="">Todas as categorias</option>
-          {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+          {categoriasDisponiveis.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 
