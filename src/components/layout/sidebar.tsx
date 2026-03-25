@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 type NavItem = {
@@ -124,9 +124,19 @@ export function Sidebar() {
   const pathname = usePathname()
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [pendingHref, setPendingHref] = useState<string | null>(null)
+  const clickStartedAtRef = useRef<number | null>(null)
+  const clickedLabelRef = useRef<string | null>(null)
 
   useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && pendingHref && clickStartedAtRef.current) {
+      const ms = Math.round(performance.now() - clickStartedAtRef.current)
+      const pageName = clickedLabelRef.current ?? pendingHref
+      console.log(`[DEV][NAV] ${pageName} carregou em ${ms}ms`)
+    }
+
     setPendingHref(null)
+    clickStartedAtRef.current = null
+    clickedLabelRef.current = null
   }, [pathname])
 
   useEffect(() => {
@@ -172,6 +182,8 @@ export function Sidebar() {
                   href={item.available ? item.href : '#'}
                   onClick={() => {
                     if (!item.available || isActive) return
+                    clickStartedAtRef.current = performance.now()
+                    clickedLabelRef.current = item.label
                     setPendingHref(item.href)
                   }}
                   className={[
@@ -231,6 +243,8 @@ export function Sidebar() {
             href="/configuracoes"
             onClick={() => {
               if (pathname.startsWith('/configuracoes')) return
+              clickStartedAtRef.current = performance.now()
+              clickedLabelRef.current = 'Configurações'
               setPendingHref('/configuracoes')
             }}
             className="flex-shrink-0 p-1 rounded-md transition-colors hover:opacity-80"
