@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import {
+  getOrdensCompra,
   gerarOC,
   gerarTodasOCs,
   atualizarQuantidadeItem,
@@ -440,6 +441,8 @@ function OcDetalheModal({
 export function OcClient({ fila, ordens, perm }: Props) {
   const router = useRouter()
   const [aba, setAba] = useState<'fila' | 'historico'>('fila')
+  const [ordensState, setOrdensState] = useState<OrdemCompra[]>(ordens)
+  const [loadingHistorico, setLoadingHistorico] = useState(false)
   const [gerandoFornecedor, setGerandoFornecedor] = useState<string | null>(null)
   const [gerandoTodas, setGerandoTodas] = useState(false)
   const [ocAberta, setOcAberta] = useState<OrdemCompra | null>(null)
@@ -449,6 +452,28 @@ export function OcClient({ fila, ordens, perm }: Props) {
   const [filtroStatus, setFiltroStatus] = useState<StatusOC | 'todas'>('todas')
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState('')
+
+  useEffect(() => {
+    if (aba !== 'historico' || ordensState.length > 0 || loadingHistorico) return
+
+    let cancelled = false
+    async function carregarHistorico() {
+      setLoadingHistorico(true)
+      try {
+        const data = await getOrdensCompra()
+        if (!cancelled) setOrdensState(data)
+      } catch (e: unknown) {
+        if (!cancelled) setErro(e instanceof Error ? e.message : 'Erro ao carregar histórico.')
+      } finally {
+        if (!cancelled) setLoadingHistorico(false)
+      }
+    }
+
+    carregarHistorico()
+    return () => {
+      cancelled = true
+    }
+  }, [aba, ordensState.length, loadingHistorico])
 
   function refresh() { router.refresh() }
 
@@ -501,9 +526,9 @@ export function OcClient({ fila, ordens, perm }: Props) {
   }
 
   const ordensFiltradas = useMemo(() => {
-    if (filtroStatus === 'todas') return ordens
-    return ordens.filter((o) => o.status === filtroStatus)
-  }, [ordens, filtroStatus])
+    if (filtroStatus === 'todas') return ordensState
+    return ordensState.filter((o) => o.status === filtroStatus)
+  }, [ordensState, filtroStatus])
 
   const statusTabs: { value: StatusOC | 'todas'; label: string }[] = [
     { value: 'todas', label: 'Todas' },
@@ -560,7 +585,7 @@ export function OcClient({ fila, ordens, perm }: Props) {
         <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: 'color-mix(in srgb, var(--ac-border) 40%, transparent)' }}>
           {[
             { key: 'fila' as const, label: 'Fila de Reposição', count: fila.length },
-            { key: 'historico' as const, label: 'Ordens de Compra', count: ordens.length },
+            { key: 'historico' as const, label: 'Ordens de Compra', count: ordensState.length },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -687,7 +712,9 @@ export function OcClient({ fila, ordens, perm }: Props) {
           {/* Filtro de status */}
           <div className="flex gap-2 mb-5">
             {statusTabs.map((tab) => {
-              const count = tab.value === 'todas' ? ordens.length : ordens.filter((o) => o.status === tab.value).length
+              const count = tab.value === 'todas'
+                ? ordensState.length
+                : ordensState.filter((o) => o.status === tab.value).length
               return (
                 <button
                   key={tab.value}
@@ -706,7 +733,13 @@ export function OcClient({ fila, ordens, perm }: Props) {
             })}
           </div>
 
-          {ordensFiltradas.length === 0 ? (
+          {loadingHistorico && (
+            <div className="py-8 text-sm" style={{ color: 'var(--ac-muted)' }}>
+              Carregando histórico de ordens...
+            </div>
+          )}
+
+          {!loadingHistorico && ordensFiltradas.length === 0 ? (
             <div
               className="flex flex-col items-center justify-center py-16 rounded-xl text-center"
               style={{ border: '2px dashed var(--ac-border)' }}

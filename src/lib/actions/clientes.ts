@@ -1,20 +1,29 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { createClient, withSupabaseCookieContext } from '@/lib/supabase/server'
 import { assertPermissao, requireAuthenticatedUserId } from '@/lib/auth'
 import type { Cliente } from '@/types'
 
+const getClientesCached = unstable_cache(
+  async (_userId: string, limit: number): Promise<Cliente[]> => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*')
+      .order('nome')
+      .limit(limit)
+    if (error) throw new Error(error.message)
+    return data as Cliente[]
+  },
+  ['clientes-list'],
+  { revalidate: 60 }
+)
+
 export async function getClientes(limit = 50): Promise<Cliente[]> {
-  await requireAuthenticatedUserId()
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('clientes')
-    .select('*')
-    .order('nome')
-    .limit(limit)
-  if (error) throw new Error(error.message)
-  return data as Cliente[]
+  const userId = await requireAuthenticatedUserId()
+  return withSupabaseCookieContext(() => getClientesCached(userId, limit))
 }
 
 type ClienteInput = {

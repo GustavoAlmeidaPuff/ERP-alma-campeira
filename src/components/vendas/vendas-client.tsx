@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { VendaFormModal } from './venda-form-modal'
 import { VendaDetalheModal } from './venda-detalhe-modal'
-import { deletarVenda } from '@/lib/actions/vendas'
+import { deletarVenda, getVendaDetalhe } from '@/lib/actions/vendas'
 import { STATUS_PEDIDO } from '@/types'
 import type { Pedido, Cliente, Faca, StatusPedido } from '@/types'
 
@@ -31,6 +31,7 @@ export function VendasClient({ pedidos, clientes, facas, perm }: Props) {
   const [formAberto, setFormAberto] = useState(false)
   const [editando, setEditando] = useState<Pedido | null>(null)
   const [detalhe, setDetalhe] = useState<Pedido | null>(null)
+  const [loadingDetalheId, setLoadingDetalheId] = useState<string | null>(null)
   const [deletando, setDeletando] = useState<Pedido | null>(null)
   const [erroDelete, setErroDelete] = useState('')
   const [loadingDelete, setLoadingDelete] = useState(false)
@@ -49,6 +50,15 @@ export function VendasClient({ pedidos, clientes, facas, perm }: Props) {
 
   function abrirNovo() { setEditando(null); setFormAberto(true) }
   function abrirEditar(p: Pedido) { setEditando(p); setFormAberto(true) }
+  async function abrirDetalhe(p: Pedido) {
+    setLoadingDetalheId(p.id)
+    try {
+      const venda = await getVendaDetalhe(p.id)
+      setDetalhe(venda)
+    } finally {
+      setLoadingDetalheId(null)
+    }
+  }
 
   async function confirmarDelete() {
     if (!deletando) return
@@ -197,15 +207,22 @@ export function VendasClient({ pedidos, clientes, facas, perm }: Props) {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         {/* Ver detalhe */}
-                        <button onClick={() => setDetalhe(p)} className="p-1.5 rounded-lg transition-colors"
+                        <button onClick={() => abrirDetalhe(p)} className="p-1.5 rounded-lg transition-colors"
+                          disabled={loadingDetalheId === p.id}
                           style={{ color: 'var(--ac-muted)' }}
                           onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--ac-border)'; e.currentTarget.style.color = 'var(--ac-text)' }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ac-muted)' }}
                           title="Ver venda">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-4">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
+                          {loadingDetalheId === p.id ? (
+                            <svg viewBox="0 0 24 24" className="size-4 animate-spin" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-4">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          )}
                         </button>
 
                         {/* Editar (só orçamento) */}

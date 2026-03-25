@@ -28,10 +28,12 @@ async function MateriasPrimasPageData() {
   ])
 
   return (
-    <MPClient
-      materiasPrimas={materiasPrimas}
-      fornecedores={fornecedores}
-      perm={perms.materias_primas}
-    />
+    <div data-nav-content-ready="Matérias-Primas">
+      <MPClient
+        materiasPrimas={materiasPrimas}
+        fornecedores={fornecedores}
+        perm={perms.materias_primas}
+      />
+    </div>
   )
 }

@@ -1,20 +1,29 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { createClient, withSupabaseCookieContext } from '@/lib/supabase/server'
 import { assertPermissao, requireAuthenticatedUserId } from '@/lib/auth'
 import type { Fornecedor } from '@/types'
 
+const getFornecedoresCached = unstable_cache(
+  async (_userId: string, limit: number): Promise<Fornecedor[]> => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('fornecedores')
+      .select('*')
+      .order('nome')
+      .limit(limit)
+    if (error) throw new Error(error.message)
+    return data as Fornecedor[]
+  },
+  ['fornecedores-list'],
+  { revalidate: 60 }
+)
+
 export async function getFornecedores(limit = 50): Promise<Fornecedor[]> {
-  await requireAuthenticatedUserId()
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('fornecedores')
-    .select('*')
-    .order('nome')
-    .limit(limit)
-  if (error) throw new Error(error.message)
-  return data as Fornecedor[]
+  const userId = await requireAuthenticatedUserId()
+  return withSupabaseCookieContext(() => getFornecedoresCached(userId, limit))
 }
 
 type FornecedorInput = {

@@ -22,5 +22,9 @@ async function ClientesPageData() {
   const perms = await getPermissoesEfetivas()
   if (!perms.clientes.ver) redirect('/')
   const clientes = await getClientes(120)
-  return <ClientesClient clientes={clientes} perm={perms.clientes} />
+  return (
+    <div data-nav-content-ready="Clientes">
+      <ClientesClient clientes={clientes} perm={perms.clientes} />
+    </div>
+  )
 }

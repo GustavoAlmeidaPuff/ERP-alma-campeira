@@ -30,11 +30,13 @@ async function VendasPageData() {
   ])
 
   return (
-    <VendasClient
-      pedidos={pedidos}
-      clientes={clientes}
-      facas={facas}
-      perm={perms.vendas}
-    />
+    <div data-nav-content-ready="Vendas">
+      <VendasClient
+        pedidos={pedidos}
+        clientes={clientes}
+        facas={facas}
+        perm={perms.vendas}
+      />
+    </div>
   )
 }

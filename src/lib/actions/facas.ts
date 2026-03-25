@@ -1,20 +1,29 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { createClient, withSupabaseCookieContext } from '@/lib/supabase/server'
 import { assertPermissao, requireAuthenticatedUserId } from '@/lib/auth'
 import type { Faca } from '@/types'
 
+const getFacasCached = unstable_cache(
+  async (_userId: string, limit: number): Promise<Faca[]> => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('facas')
+      .select('*')
+      .order('codigo')
+      .limit(limit)
+    if (error) throw new Error(error.message)
+    return data as Faca[]
+  },
+  ['facas-list'],
+  { revalidate: 60 }
+)
+
 export async function getFacas(limit = 80): Promise<Faca[]> {
-  await requireAuthenticatedUserId()
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('facas')
-    .select('*')
-    .order('codigo')
-    .limit(limit)
-  if (error) throw new Error(error.message)
-  return data as Faca[]
+  const userId = await requireAuthenticatedUserId()
+  return withSupabaseCookieContext(() => getFacasCached(userId, limit))
 }
 
 export async function gerarCodigoFaca(): Promise<string> {

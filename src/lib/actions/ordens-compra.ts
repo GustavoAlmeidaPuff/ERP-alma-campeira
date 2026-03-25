@@ -1,69 +1,69 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { createClient, withSupabaseCookieContext } from '@/lib/supabase/server'
 import { assertPermissao, getAuthenticatedUser } from '@/lib/auth'
 import type { OrdemCompra, FilaFornecedor } from '@/types'
 
 // ─── Fila de Reposição ────────────────────────────────────────────────────────
 
+const getFilaReposicaoCached = unstable_cache(
+  async (): Promise<FilaFornecedor[]> => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('fila_reposicao')
+      .select(`
+        materia_prima_id,
+        fornecedor_id,
+        quantidade_pendente,
+        mp:materias_primas(id, codigo, nome, preco_custo),
+        fornecedor:fornecedores(id, nome)
+      `)
+
+    if (error) throw new Error(error.message)
+
+    const mapa = new Map<string, FilaFornecedor>()
+    for (const row of data ?? []) {
+      const mp = (Array.isArray(row.mp) ? row.mp[0] : row.mp) as {
+        id: string; codigo: string; nome: string; preco_custo: number
+      } | null
+      const forn = (Array.isArray(row.fornecedor) ? row.fornecedor[0] : row.fornecedor) as {
+        id: string; nome: string
+      } | null
+      if (!mp) continue
+      const chave = row.fornecedor_id ?? '__sem_fornecedor__'
+      if (!mapa.has(chave)) {
+        mapa.set(chave, {
+          fornecedor_id: row.fornecedor_id,
+          fornecedor_nome: forn?.nome ?? 'Sem fornecedor',
+          itens: [],
+        })
+      }
+      const grupo = mapa.get(chave)!
+      const existente = grupo.itens.find((i) => i.materia_prima_id === row.materia_prima_id)
+      if (existente) {
+        existente.quantidade_total += Number(row.quantidade_pendente)
+      } else {
+        grupo.itens.push({
+          materia_prima_id: row.materia_prima_id,
+          mp_codigo: mp.codigo,
+          mp_nome: mp.nome,
+          mp_preco_custo: Number(mp.preco_custo),
+          quantidade_total: Number(row.quantidade_pendente),
+        })
+      }
+    }
+
+    return Array.from(mapa.values()).sort((a, b) => a.fornecedor_nome.localeCompare(b.fornecedor_nome))
+  },
+  ['ordens-compra-fila'],
+  { revalidate: 30 }
+)
+
 export async function getFilaReposicao(): Promise<FilaFornecedor[]> {
   await assertPermissao('ordens_compra', 'ver')
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('fila_reposicao')
-    .select(`
-      materia_prima_id,
-      fornecedor_id,
-      quantidade_pendente,
-      mp:materias_primas(id, codigo, nome, preco_custo),
-      fornecedor:fornecedores(id, nome)
-    `)
-
-  if (error) throw new Error(error.message)
-
-  // Agrupar por fornecedor_id, depois por materia_prima_id somando quantidades
-  const mapa = new Map<string, FilaFornecedor>()
-
-  for (const row of data ?? []) {
-    const mp = (Array.isArray(row.mp) ? row.mp[0] : row.mp) as {
-      id: string; codigo: string; nome: string; preco_custo: number
-    } | null
-    const forn = (Array.isArray(row.fornecedor) ? row.fornecedor[0] : row.fornecedor) as {
-      id: string; nome: string
-    } | null
-
-    if (!mp) continue
-
-    const chave = row.fornecedor_id ?? '__sem_fornecedor__'
-
-    if (!mapa.has(chave)) {
-      mapa.set(chave, {
-        fornecedor_id: row.fornecedor_id,
-        fornecedor_nome: forn?.nome ?? 'Sem fornecedor',
-        itens: [],
-      })
-    }
-
-    const grupo = mapa.get(chave)!
-    const existente = grupo.itens.find((i) => i.materia_prima_id === row.materia_prima_id)
-    if (existente) {
-      existente.quantidade_total += Number(row.quantidade_pendente)
-    } else {
-      grupo.itens.push({
-        materia_prima_id: row.materia_prima_id,
-        mp_codigo: mp.codigo,
-        mp_nome: mp.nome,
-        mp_preco_custo: Number(mp.preco_custo),
-        quantidade_total: Number(row.quantidade_pendente),
-      })
-    }
-  }
-
-  return Array.from(mapa.values()).sort((a, b) =>
-    a.fornecedor_nome.localeCompare(b.fornecedor_nome)
-  )
+  return withSupabaseCookieContext(() => getFilaReposicaoCached())
 }
 
 // ─── Gerar OC ─────────────────────────────────────────────────────────────────
@@ -174,24 +174,30 @@ export async function gerarTodasOCs(): Promise<number> {
 
 // ─── Consultas de OC ──────────────────────────────────────────────────────────
 
+const getOrdensCompraCached = unstable_cache(
+  async (): Promise<OrdemCompra[]> => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('ordens_compra')
+      .select(`
+        *,
+        fornecedor:fornecedores(id, nome),
+        itens:ordem_compra_itens(
+          id, ordem_compra_id, materia_prima_id, quantidade, preco_unitario,
+          materia_prima:materias_primas(id, codigo, nome)
+        )
+      `)
+      .order('created_at', { ascending: false })
+    if (error) throw new Error(error.message)
+    return data as OrdemCompra[]
+  },
+  ['ordens-compra-historico'],
+  { revalidate: 30 }
+)
+
 export async function getOrdensCompra(): Promise<OrdemCompra[]> {
   await assertPermissao('ordens_compra', 'ver')
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('ordens_compra')
-    .select(`
-      *,
-      fornecedor:fornecedores(id, nome),
-      itens:ordem_compra_itens(
-        id, ordem_compra_id, materia_prima_id, quantidade, preco_unitario,
-        materia_prima:materias_primas(id, codigo, nome)
-      )
-    `)
-    .order('created_at', { ascending: false })
-
-  if (error) throw new Error(error.message)
-  return data as OrdemCompra[]
+  return withSupabaseCookieContext(() => getOrdensCompraCached())
 }
 
 // ─── Editar OC ────────────────────────────────────────────────────────────────

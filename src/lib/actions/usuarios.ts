@@ -1,46 +1,55 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { unstable_cache } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, withSupabaseCookieContext } from '@/lib/supabase/server'
 import { assertPermissao, requireAuthenticatedUserId } from '@/lib/auth'
 import type { Usuario, PerfilUsuario } from '@/types'
 import type { PermMap } from '@/lib/permissoes'
 import { MODULOS } from '@/types'
 
+const getUsuariosCached = unstable_cache(
+  async (_userId: string, limit: number): Promise<Usuario[]> => {
+    const supabase = await createClient()
+
+    const admin = createAdminClient()
+    const { data: authData, error: authError } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: limit,
+    })
+    if (authError) throw new Error(authError.message)
+
+    const [{ data: perfis }, { data: userPerms }] = await Promise.all([
+      supabase.from('usuarios_perfis').select('*, cargo:cargos(id, nome, cor, permissoes:cargo_permissoes(*))'),
+      supabase.from('usuario_permissoes').select('usuario_id'),
+    ])
+
+    const perfisMap = new Map((perfis ?? []).map((p) => [p.id, p]))
+    const customIds = new Set((userPerms ?? []).map((p) => p.usuario_id))
+
+    return authData.users.map((u) => {
+      const perfil = perfisMap.get(u.id)
+      return {
+        id: u.id,
+        email: u.email ?? '',
+        nome: perfil?.nome ?? u.email?.split('@')[0] ?? '',
+        perfil: (perfil?.perfil ?? 'vendas') as PerfilUsuario,
+        ativo: perfil?.ativo ?? true,
+        cargo_id: perfil?.cargo_id ?? null,
+        cargo: perfil?.cargo ?? null,
+        permissoes_customizadas: customIds.has(u.id),
+        created_at: u.created_at,
+      }
+    }) as Usuario[]
+  },
+  ['usuarios-list'],
+  { revalidate: 60 }
+)
+
 export async function getUsuarios(limit = 100): Promise<Usuario[]> {
-  await requireAuthenticatedUserId()
-  const supabase = await createClient()
-
-  const admin = createAdminClient()
-  const { data: authData, error: authError } = await admin.auth.admin.listUsers({
-    page: 1,
-    perPage: limit,
-  })
-  if (authError) throw new Error(authError.message)
-
-  const [{ data: perfis }, { data: userPerms }] = await Promise.all([
-    supabase.from('usuarios_perfis').select('*, cargo:cargos(id, nome, cor, permissoes:cargo_permissoes(*))'),
-    supabase.from('usuario_permissoes').select('usuario_id'),
-  ])
-
-  const perfisMap = new Map((perfis ?? []).map((p) => [p.id, p]))
-  const customIds = new Set((userPerms ?? []).map((p) => p.usuario_id))
-
-  return authData.users.map((u) => {
-    const perfil = perfisMap.get(u.id)
-    return {
-      id: u.id,
-      email: u.email ?? '',
-      nome: perfil?.nome ?? u.email?.split('@')[0] ?? '',
-      perfil: (perfil?.perfil ?? 'vendas') as PerfilUsuario,
-      ativo: perfil?.ativo ?? true,
-      cargo_id: perfil?.cargo_id ?? null,
-      cargo: perfil?.cargo ?? null,
-      permissoes_customizadas: customIds.has(u.id),
-      created_at: u.created_at,
-    }
-  }) as Usuario[]
+  const userId = await requireAuthenticatedUserId()
+  return withSupabaseCookieContext(() => getUsuariosCached(userId, limit))
 }
 
 export async function getPermissoesUsuario(userId: string): Promise<PermMap | null> {

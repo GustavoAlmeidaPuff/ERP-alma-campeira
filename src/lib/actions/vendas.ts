@@ -1,11 +1,36 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { createClient, withSupabaseCookieContext } from '@/lib/supabase/server'
 import { assertPermissao, getAuthenticatedUser, requireAuthenticatedUserId } from '@/lib/auth'
 import type { Pedido } from '@/types'
 
+const getVendasCached = unstable_cache(
+  async (_userId: string, limit: number): Promise<Pedido[]> => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select(`
+        *,
+        cliente:clientes(id, nome, tipo),
+        itens:pedido_itens(*)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (error) throw new Error(error.message)
+    return data as Pedido[]
+  },
+  ['vendas-list'],
+  { revalidate: 30 }
+)
+
 export async function getVendas(limit = 80): Promise<Pedido[]> {
+  const userId = await requireAuthenticatedUserId()
+  return withSupabaseCookieContext(() => getVendasCached(userId, limit))
+}
+
+export async function getVendaDetalhe(id: string): Promise<Pedido> {
   await requireAuthenticatedUserId()
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -15,10 +40,11 @@ export async function getVendas(limit = 80): Promise<Pedido[]> {
       cliente:clientes(id, nome, tipo),
       itens:pedido_itens(*, faca:facas(id, codigo, nome, preco_venda))
     `)
-    .order('created_at', { ascending: false })
-    .limit(limit)
-  if (error) throw new Error(error.message)
-  return data as Pedido[]
+    .eq('id', id)
+    .single()
+
+  if (error || !data) throw new Error(error?.message ?? 'Venda não encontrada.')
+  return data as Pedido
 }
 
 export async function gerarCodigoPedido(): Promise<string> {

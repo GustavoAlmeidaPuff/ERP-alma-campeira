@@ -22,5 +22,9 @@ async function CargosPageData() {
   const perms = await getPermissoesEfetivas()
   if (!perms.cargos.ver) redirect('/')
   const cargos = await getCargos(120)
-  return <CargosClient cargos={cargos} perm={perms.cargos} />
+  return (
+    <div data-nav-content-ready="Cargos">
+      <CargosClient cargos={cargos} perm={perms.cargos} />
+    </div>
+  )
 }

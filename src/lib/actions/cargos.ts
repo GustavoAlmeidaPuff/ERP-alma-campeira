@@ -1,21 +1,30 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { createClient, withSupabaseCookieContext } from '@/lib/supabase/server'
 import { assertPermissao, requireAuthenticatedUserId } from '@/lib/auth'
 import type { Cargo, ModuloKey } from '@/types'
 import { MODULOS } from '@/types'
 
+const getCargosCached = unstable_cache(
+  async (_userId: string, limit: number): Promise<Cargo[]> => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('cargos')
+      .select('*, permissoes:cargo_permissoes(*)')
+      .order('nome')
+      .limit(limit)
+    if (error) throw new Error(error.message)
+    return data as Cargo[]
+  },
+  ['cargos-list'],
+  { revalidate: 60 }
+)
+
 export async function getCargos(limit = 50): Promise<Cargo[]> {
-  await requireAuthenticatedUserId()
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('cargos')
-    .select('*, permissoes:cargo_permissoes(*)')
-    .order('nome')
-    .limit(limit)
-  if (error) throw new Error(error.message)
-  return data as Cargo[]
+  const userId = await requireAuthenticatedUserId()
+  return withSupabaseCookieContext(() => getCargosCached(userId, limit))
 }
 
 type CargoInput = {

@@ -1,20 +1,29 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { createClient, withSupabaseCookieContext } from '@/lib/supabase/server'
 import { assertPermissao, requireAuthenticatedUserId } from '@/lib/auth'
 import type { MateriaPrima } from '@/types'
 
+const getMateriasPrimasCached = unstable_cache(
+  async (_userId: string, limit: number): Promise<MateriaPrima[]> => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('materias_primas')
+      .select('*, fornecedor:fornecedores(id, nome, telefone, email, created_at)')
+      .order('codigo')
+      .limit(limit)
+    if (error) throw new Error(error.message)
+    return data as MateriaPrima[]
+  },
+  ['materias-primas-list'],
+  { revalidate: 60 }
+)
+
 export async function getMatériasPrimas(limit = 120): Promise<MateriaPrima[]> {
-  await requireAuthenticatedUserId()
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('materias_primas')
-    .select('*, fornecedor:fornecedores(id, nome, telefone, email, created_at)')
-    .order('codigo')
-    .limit(limit)
-  if (error) throw new Error(error.message)
-  return data as MateriaPrima[]
+  const userId = await requireAuthenticatedUserId()
+  return withSupabaseCookieContext(() => getMateriasPrimasCached(userId, limit))
 }
 
 export async function gerarCodigoMP(): Promise<string> {

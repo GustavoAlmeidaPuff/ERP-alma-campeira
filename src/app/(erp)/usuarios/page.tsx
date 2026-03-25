@@ -23,5 +23,9 @@ async function UsuariosPageData() {
   const perms = await getPermissoesEfetivas()
   if (!perms.usuarios.ver) redirect('/')
   const [usuarios, cargos] = await Promise.all([getUsuarios(120), getCargos(80)])
-  return <UsuariosClient usuarios={usuarios} cargos={cargos} perm={perms.usuarios} />
+  return (
+    <div data-nav-content-ready="Usuários">
+      <UsuariosClient usuarios={usuarios} cargos={cargos} perm={perms.usuarios} />
+    </div>
+  )
 }

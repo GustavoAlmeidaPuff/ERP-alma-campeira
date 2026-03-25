@@ -22,5 +22,9 @@ async function FornecedoresPageData() {
   const perms = await getPermissoesEfetivas()
   if (!perms.fornecedores.ver) redirect('/')
   const fornecedores = await getFornecedores(120)
-  return <FornecedoresClient fornecedores={fornecedores} perm={perms.fornecedores} />
+  return (
+    <div data-nav-content-ready="Fornecedores">
+      <FornecedoresClient fornecedores={fornecedores} perm={perms.fornecedores} />
+    </div>
+  )
 }

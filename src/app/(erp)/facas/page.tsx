@@ -23,5 +23,9 @@ async function FacasPageData() {
   const perms = await getPermissoesEfetivas()
   if (!perms.facas.ver) redirect('/')
   const [facas, categorias] = await Promise.all([getFacas(120), getCategoriasFaca()])
-  return <FacasClient facas={facas} categorias={categorias} perm={perms.facas} />
+  return (
+    <div data-nav-content-ready="Facas">
+      <FacasClient facas={facas} categorias={categorias} perm={perms.facas} />
+    </div>
+  )
 }

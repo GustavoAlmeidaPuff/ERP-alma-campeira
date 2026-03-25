@@ -18,5 +18,9 @@ export default async function ConfiguracoesPage() {
 
 async function ConfiguracoesPageData() {
   const categorias = await getCategoriasFaca()
-  return <ConfiguracoesClient categorias={categorias} />
+  return (
+    <div data-nav-content-ready="Configurações">
+      <ConfiguracoesClient categorias={categorias} />
+    </div>
+  )
 }

@@ -4,107 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-
-type NavItem = {
-  href: string
-  label: string
-  available: boolean
-  icon: React.ReactNode
-}
-
-type NavSection = {
-  label: string
-  items: NavItem[]
-}
-
-const iconMP = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
-    <path d="M4 8h16" />
-    <path d="M6 8V6.8a1.8 1.8 0 0 1 1.8-1.8h8.4A1.8 1.8 0 0 1 18 6.8V8" />
-    <rect x="5" y="8" width="14" height="11" rx="2" />
-    <path d="M9 12h6" />
-    <path d="M9 15h4" />
-  </svg>
-)
-const iconFaca = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="size-[18px]">
-    <path d="M14 4c1.6 2.3 2.1 5 1.2 7.2l-1 2.4-3.8-3.8 2.4-1c2.2-.9 4.9-.4 7.2 1.2" />
-    <path d="M10.6 9.8 4 16.4" />
-    <path d="M3 17.4 6.6 21 10.2 17.4 6.6 13.8 3 17.4Z" />
-  </svg>
-)
-const iconFornecedor = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
-    <rect x="1" y="3" width="15" height="13" rx="1" />
-    <path d="M16 8h4l3 5v3h-7V8z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
-  </svg>
-)
-const iconOC = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
-  </svg>
-)
-const iconVendas = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
-    <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-  </svg>
-)
-const iconClientes = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-)
-const iconUsuarios = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
-    <circle cx="12" cy="8" r="4" /><path d="M20 21a8 8 0 1 0-16 0" />
-  </svg>
-)
-
-const sections: NavSection[] = [
-  {
-    label: 'Estoque',
-    items: [
-      { href: '/materias-primas', label: 'Matérias-Primas', available: true, icon: iconMP },
-      { href: '/facas', label: 'Facas', available: true, icon: iconFaca },
-    ],
-  },
-  {
-    label: 'Compras',
-    items: [
-      { href: '/fornecedores', label: 'Fornecedores', available: true, icon: iconFornecedor },
-      { href: '/ordens-compra', label: 'Ordens de Compra', available: true, icon: iconOC },
-    ],
-  },
-  {
-    label: 'Vendas',
-    items: [
-      { href: '/vendas', label: 'Vendas', available: true, icon: iconVendas },
-      { href: '/clientes', label: 'Clientes', available: true, icon: iconClientes },
-    ],
-  },
-  {
-    label: 'Sistema',
-    items: [
-      { href: '/usuarios', label: 'Usuários', available: true, icon: iconUsuarios },
-      {
-        href: '/cargos',
-        label: 'Cargos',
-        available: true,
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
-            <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-          </svg>
-        ),
-      },
-    ],
-  },
-]
+import { sections } from '@/components/layout/erp-navigation'
 
 const iconGear = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[16px] flex-shrink-0">
@@ -145,12 +45,12 @@ export function Sidebar() {
 
     const tick = () => {
       const content = document.querySelector('main')
-      const pageHeading = Array.from(document.querySelectorAll('h1[data-nav-page-title]')).find(
-        (h1) => h1.getAttribute('data-nav-page-title') === pageName
+      const contentReady = Array.from(document.querySelectorAll('[data-nav-content-ready]')).find(
+        (el) => el.getAttribute('data-nav-content-ready') === pageName
       )
-      const pageHeadingVisible = Boolean(pageHeading && pageHeading.getBoundingClientRect().height > 0)
+      const contentReadyVisible = Boolean(contentReady && contentReady.getBoundingClientRect().height > 0)
 
-      if (content && pageHeadingVisible) {
+      if (content && contentReadyVisible) {
         if (process.env.NODE_ENV === 'development' && startedAt) {
           const ms = Math.round(performance.now() - startedAt)
           console.log(`[DEV][NAV] ${pageName} conteúdo visível em ${ms}ms`)
