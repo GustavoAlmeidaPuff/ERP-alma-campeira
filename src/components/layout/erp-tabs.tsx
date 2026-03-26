@@ -283,6 +283,36 @@ type DragState = {
 function ErpTabsContent() {
   const { openTabs, activeHref, selectTab, closeTab, reorderTabs } = useErpTabs()
 
+  // Track which tabs have been visited at least once — only those get mounted.
+  // On refresh, only the active tab is in this set, so only it fetches data.
+  const [visited, setVisited] = useState<Set<string>>(() => new Set([activeHref]))
+
+  useEffect(() => {
+    setVisited((prev) => {
+      if (prev.has(activeHref)) return prev
+      const next = new Set(prev)
+      next.add(activeHref)
+      return next
+    })
+  }, [activeHref])
+
+  // Clean up visited set when tabs are closed
+  useEffect(() => {
+    const openHrefs = new Set(openTabs.map((t) => t.href))
+    setVisited((prev) => {
+      let changed = false
+      for (const h of prev) {
+        if (!openHrefs.has(h)) { changed = true; break }
+      }
+      if (!changed) return prev
+      const next = new Set<string>()
+      for (const h of prev) {
+        if (openHrefs.has(h)) next.add(h)
+      }
+      return next
+    })
+  }, [openTabs])
+
   const containerRef = useRef<HTMLDivElement>(null)
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
@@ -487,11 +517,24 @@ function ErpTabsContent() {
       )}
 
       <div>
-        {openTabs.map((tab) => (
-          <div key={tab.href} style={{ display: tab.href === activeHref ? 'block' : 'none' }}>
-            <TabPane href={tab.href} />
-          </div>
-        ))}
+        {openTabs.map((tab) => {
+          const isActive = tab.href === activeHref
+          // Only mount tabs that have been visited at least once.
+          // On refresh, only the active tab mounts & fetches data.
+          // Switching to another tab mounts it for the first time (lazy).
+          if (!visited.has(tab.href)) {
+            return isActive ? (
+              <div key={tab.href}>
+                <TabSkeleton href={tab.href} />
+              </div>
+            ) : null
+          }
+          return (
+            <div key={tab.href} style={{ display: isActive ? 'block' : 'none' }}>
+              <TabPane href={tab.href} />
+            </div>
+          )
+        })}
       </div>
     </div>
   )
