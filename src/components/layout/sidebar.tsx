@@ -78,7 +78,13 @@ export function Sidebar() {
                     openTab(item.href)
                   }}
                   className={[
-                    'flex items-center gap-3 px-4 py-2 mx-2 rounded-lg text-sm transition-colors',
+                    'flex w-[calc(100%-1rem)] items-center gap-3 px-4 py-2 mx-2 rounded-lg text-sm transition-colors',
+                    item.available && !isActive
+                      ? 'hover:bg-[color-mix(in_srgb,var(--ac-accent)_8%,transparent)]'
+                      : '',
+                    isActive
+                      ? 'bg-[color-mix(in_srgb,var(--ac-accent)_10%,transparent)]'
+                      : '',
                     isActive
                       ? 'font-semibold'
                       : item.available
@@ -87,9 +93,6 @@ export function Sidebar() {
                   ].join(' ')}
                   style={{
                     color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)',
-                    background: isActive
-                      ? 'color-mix(in srgb, var(--ac-accent) 10%, transparent)'
-                      : 'transparent',
                   }}
                 >
                   <span style={{ color: isActive ? 'var(--ac-accent)' : 'var(--ac-muted)' }}>{item.icon}</span>
