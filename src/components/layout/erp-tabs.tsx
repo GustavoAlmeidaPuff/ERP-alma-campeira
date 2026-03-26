@@ -454,7 +454,7 @@ function ErpTabsContent() {
                       if (didDragRef.current) return
                       selectTab(tab.href)
                     }}
-                    className="flex min-w-0 items-center gap-2"
+                    className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-left"
                     style={{ color: isActive ? 'var(--ac-accent)' : 'var(--ac-text)' }}
                     title={tab.label}
                   >
