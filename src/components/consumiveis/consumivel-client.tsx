@@ -4,52 +4,59 @@ import { useState, useMemo } from 'react'
 import { BadgeEstoque } from '@/components/ui/badge-estoque'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
-import { MPModal } from './mp-modal'
-import { deletarMateriaPrima } from '@/lib/actions/materias-primas'
-import { statusEstoque } from '@/types'
-import type { MateriaPrima, Fornecedor, CategoriaMateriaPrimaDB } from '@/types'
+import { Input } from '@/components/ui/input'
+import { ConsumivelModal } from './consumivel-modal'
+import { baixaEstoqueConsumivel, deletarConsumivel, entradaEstoqueConsumivel } from '@/lib/actions/consumiveis'
+import { statusEstoqueConsumivel } from '@/types'
+import type { Consumivel, Fornecedor, CategoriaConsumivelDB } from '@/types'
 import { useErpTabs } from '@/components/layout/erp-tabs'
 import { getOptimizedSupabaseImageUrl } from '@/lib/supabase/optimized-image'
 
 type Perm = { ver: boolean; criar: boolean; editar: boolean; deletar: boolean }
 
 type Props = {
-  materiasPrimas: MateriaPrima[]
+  consumiveis: Consumivel[]
   fornecedores: Fornecedor[]
-  categoriasMateriaPrima: CategoriaMateriaPrimaDB[]
+  categoriasConsumivel: CategoriaConsumivelDB[]
   perm: Perm
 }
 
-export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima, perm }: Props) {
-  const { refreshActiveTab, openTab } = useErpTabs()
+export function ConsumivelClient({ consumiveis, fornecedores, categoriasConsumivel, perm }: Props) {
+  const { refreshActiveTab } = useErpTabs()
   const [modalAberto, setModalAberto] = useState(false)
-  const [editando, setEditando] = useState<MateriaPrima | null>(null)
-  const [deletando, setDeletando] = useState<MateriaPrima | null>(null)
+  const [editando, setEditando] = useState<Consumivel | null>(null)
+  const [deletando, setDeletando] = useState<Consumivel | null>(null)
   const [erroDelete, setErroDelete] = useState('')
   const [loadingDelete, setLoadingDelete] = useState(false)
   const [busca, setBusca] = useState('')
   const [fotoLightboxSrc, setFotoLightboxSrc] = useState<string>('')
   const [fotoLightboxAlt, setFotoLightboxAlt] = useState<string>('')
 
-  const filtrados = useMemo(() => {
-    if (!busca.trim()) return materiasPrimas
-    const q = busca.toLowerCase()
-    return materiasPrimas.filter(
-      (mp) =>
-        mp.nome.toLowerCase().includes(q) ||
-        mp.codigo.toLowerCase().includes(q) ||
-        mp.categoria.toLowerCase().includes(q) ||
-        mp.fornecedor?.nome?.toLowerCase().includes(q)
-    )
-  }, [materiasPrimas, busca])
+  const [movModal, setMovModal] = useState<null | { tipo: 'entrada' | 'baixa'; item: Consumivel }>(null)
+  const [movQtd, setMovQtd] = useState('1')
+  const [movObs, setMovObs] = useState('')
+  const [movErro, setMovErro] = useState('')
+  const [movLoading, setMovLoading] = useState(false)
 
-  const fotoUrlByMPId = useMemo(() => {
+  const filtrados = useMemo(() => {
+    if (!busca.trim()) return consumiveis
+    const q = busca.toLowerCase()
+    return consumiveis.filter(
+      (c) =>
+        c.nome.toLowerCase().includes(q) ||
+        c.codigo.toLowerCase().includes(q) ||
+        c.categoria.toLowerCase().includes(q) ||
+        c.fornecedor?.nome?.toLowerCase().includes(q)
+    )
+  }, [consumiveis, busca])
+
+  const fotoUrlById = useMemo(() => {
     const map = new Map<string, string>()
-    for (const mp of materiasPrimas) {
-      if (!mp.foto_url) continue
+    for (const c of consumiveis) {
+      if (!c.foto_url) continue
       map.set(
-        mp.id,
-        getOptimizedSupabaseImageUrl(mp.foto_url, {
+        c.id,
+        getOptimizedSupabaseImageUrl(c.foto_url, {
           width: 64,
           height: 64,
           quality: 65,
@@ -57,28 +64,60 @@ export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima,
       )
     }
     return map
-  }, [materiasPrimas])
+  }, [consumiveis])
 
   function abrirNovo() {
     setEditando(null)
     setModalAberto(true)
   }
 
-  function abrirEditar(mp: MateriaPrima) {
-    setEditando(mp)
+  function abrirEditar(c: Consumivel) {
+    setEditando(c)
     setModalAberto(true)
   }
 
-  function abrirFotoLightbox(mp: MateriaPrima, thumbFallback: string) {
-    if (!mp.foto_url) return
-    const srcGrande = getOptimizedSupabaseImageUrl(mp.foto_url, {
+  function abrirFotoLightbox(c: Consumivel, thumbFallback: string) {
+    if (!c.foto_url) return
+    const srcGrande = getOptimizedSupabaseImageUrl(c.foto_url, {
       width: 520,
       height: 520,
       quality: 80,
       resize: 'contain',
     })
     setFotoLightboxSrc(srcGrande || thumbFallback)
-    setFotoLightboxAlt(mp.nome)
+    setFotoLightboxAlt(c.nome)
+  }
+
+  function abrirMovimento(tipo: 'entrada' | 'baixa', item: Consumivel) {
+    setMovModal({ tipo, item })
+    setMovQtd('1')
+    setMovObs('')
+    setMovErro('')
+  }
+
+  const movQtdNum = Number(movQtd.replace(',', '.')) || 0
+
+  async function confirmarMovimento() {
+    if (!movModal) return
+    if (movQtdNum <= 0) {
+      setMovErro('Informe uma quantidade maior que zero.')
+      return
+    }
+    setMovErro('')
+    setMovLoading(true)
+    try {
+      if (movModal.tipo === 'entrada') {
+        await entradaEstoqueConsumivel(movModal.item.id, movQtdNum, movObs)
+      } else {
+        await baixaEstoqueConsumivel(movModal.item.id, movQtdNum, movObs)
+      }
+      setMovModal(null)
+      refreshActiveTab()
+    } catch (e: unknown) {
+      setMovErro(e instanceof Error ? e.message : 'Erro ao registrar movimentação.')
+    } finally {
+      setMovLoading(false)
+    }
   }
 
   async function confirmarDelete() {
@@ -86,7 +125,7 @@ export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima,
     setErroDelete('')
     setLoadingDelete(true)
     try {
-      await deletarMateriaPrima(deletando.id)
+      await deletarConsumivel(deletando.id)
       setDeletando(null)
       refreshActiveTab()
     } catch (e: unknown) {
@@ -101,9 +140,9 @@ export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima,
       {/* Header da página */}
       <div className="flex items-center justify-between px-8 py-6" style={{ borderBottom: '1px solid var(--ac-border)' }}>
         <div>
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Matérias-Primas</h2>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--ac-text)' }}>Consumíveis</h2>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ac-muted)' }}>
-            {materiasPrimas.length} {materiasPrimas.length === 1 ? 'item cadastrado' : 'itens cadastrados'}
+            {consumiveis.length} {consumiveis.length === 1 ? 'item cadastrado' : 'itens cadastrados'}
           </p>
         </div>
         {perm.criar && (
@@ -112,7 +151,7 @@ export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima,
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Nova matéria-prima
+            Novo consumível
           </Button>
         )}
       </div>
@@ -172,33 +211,31 @@ export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima,
               {filtrados.length === 0 && (
                 <tr>
                   <td colSpan={9} className="text-center py-12 text-sm" style={{ color: 'var(--ac-muted)' }}>
-                    {busca ? 'Nenhum resultado para essa busca.' : 'Nenhuma matéria-prima cadastrada ainda.'}
+                    {busca ? 'Nenhum resultado para essa busca.' : 'Nenhum consumível cadastrado ainda.'}
                   </td>
                 </tr>
               )}
-              {filtrados.map((mp, i) => {
-                const status = statusEstoque(mp)
+              {filtrados.map((c, i) => {
+                const status = statusEstoqueConsumivel(c)
                 return (
                   <tr
-                    key={mp.id}
+                    key={c.id}
                     style={{
                       borderTop: i > 0 ? '1px solid var(--ac-border)' : undefined,
                       background: 'var(--ac-card)',
-                      cursor: 'pointer',
                     }}
-                    onClick={() => openTab(`/materias-primas/${mp.id}`)}
                     onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--ac-bg)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--ac-card)')}
                   >
                     <td className="px-4 py-3">
                       {(() => {
-                        const thumbUrl = fotoUrlByMPId.get(mp.id)
+                        const thumbUrl = fotoUrlById.get(c.id)
                         if (thumbUrl) {
                           return (
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); abrirFotoLightbox(mp, thumbUrl) }}
-                              aria-label={`Expandir foto de ${mp.nome}`}
+                              onClick={() => abrirFotoLightbox(c, thumbUrl)}
+                              aria-label={`Expandir foto de ${c.nome}`}
                               style={{
                                 background: 'transparent',
                                 border: 'none',
@@ -211,7 +248,7 @@ export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima,
                             >
                               <img
                                 src={thumbUrl}
-                                alt={mp.nome}
+                                alt={c.nome}
                                 width={64}
                                 height={64}
                                 loading="lazy"
@@ -227,7 +264,7 @@ export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima,
                         }
                         return (
                           <div
-                            aria-label={`Sem foto para ${mp.nome}`}
+                            aria-label={`Sem foto para ${c.nome}`}
                             style={{
                               width: 64,
                               height: 64,
@@ -251,33 +288,72 @@ export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima,
                       })()}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs font-medium" style={{ color: 'var(--ac-muted)' }}>
-                      {mp.codigo}
+                      {c.codigo}
                     </td>
                     <td className="px-4 py-3 font-medium" style={{ color: 'var(--ac-text)' }}>
-                      {mp.nome}
+                      {c.nome}
                     </td>
                     <td className="px-4 py-3" style={{ color: 'var(--ac-muted)' }}>
-                      {mp.categoria}
+                      {c.categoria}
                     </td>
                     <td className="px-4 py-3" style={{ color: 'var(--ac-muted)' }}>
-                      {mp.fornecedor?.nome ?? '—'}
+                      {c.fornecedor?.nome ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums" style={{ color: 'var(--ac-text)' }}>
-                      {mp.preco_custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      {c.preco_custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums" style={{ color: 'var(--ac-text)' }}>
-                      <span className="font-semibold">{Number(mp.estoque_atual).toLocaleString('pt-BR')}</span>
+                      <span className="font-semibold">{Number(c.estoque_atual).toLocaleString('pt-BR')}</span>
                       <span className="mx-1 font-normal" style={{ color: 'var(--ac-border)' }}>/</span>
-                      <span style={{ color: 'var(--ac-muted)' }}>{Number(mp.estoque_minimo).toLocaleString('pt-BR')}</span>
+                      <span style={{ color: 'var(--ac-muted)' }}>{Number(c.estoque_minimo).toLocaleString('pt-BR')}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <BadgeEstoque status={status} />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-1.5">
+                        {perm.editar && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => abrirMovimento('entrada', c)}
+                              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
+                              style={{
+                                color: '#15803d',
+                                background: 'color-mix(in srgb, #15803d 12%, transparent)',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'color-mix(in srgb, #15803d 20%, transparent)'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'color-mix(in srgb, #15803d 12%, transparent)'
+                              }}
+                            >
+                              Registrar entrada
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => abrirMovimento('baixa', c)}
+                              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
+                              style={{
+                                color: '#c2410c',
+                                background: 'color-mix(in srgb, #c2410c 12%, transparent)',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'color-mix(in srgb, #c2410c 20%, transparent)'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'color-mix(in srgb, #c2410c 12%, transparent)'
+                              }}
+                            >
+                              Baixa
+                            </button>
+                          </>
+                        )}
                         {perm.editar && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); abrirEditar(mp) }}
+                            type="button"
+                            onClick={() => abrirEditar(c)}
                             className="p-1.5 rounded-lg transition-colors"
                             style={{ color: 'var(--ac-muted)' }}
                             onMouseEnter={(e) => {
@@ -298,7 +374,8 @@ export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima,
                         )}
                         {perm.deletar && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); setDeletando(mp); setErroDelete('') }}
+                            type="button"
+                            onClick={() => { setDeletando(c); setErroDelete('') }}
                             className="p-1.5 rounded-lg transition-colors"
                             style={{ color: 'var(--ac-muted)' }}
                             onMouseEnter={(e) => {
@@ -330,17 +407,133 @@ export function MPClient({ materiasPrimas, fornecedores, categoriasMateriaPrima,
       </div>
 
       {/* Modal CRUD */}
-      <MPModal
+      <ConsumivelModal
         open={modalAberto}
         onClose={() => setModalAberto(false)}
         fornecedores={fornecedores}
-        categoriasMateriaPrima={categoriasMateriaPrima}
+        categoriasConsumivel={categoriasConsumivel}
         editando={editando}
         onSaved={refreshActiveTab}
       />
 
+      {/* Modal entrada / baixa de estoque */}
+      <Modal
+        open={!!movModal}
+        onClose={() => setMovModal(null)}
+        title={
+          movModal
+            ? movModal.tipo === 'entrada'
+              ? `Entrada de estoque — ${movModal.item.codigo}`
+              : `Baixa — ${movModal.item.codigo}`
+            : ''
+        }
+        width="440px"
+      >
+        {movModal && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm" style={{ color: 'var(--ac-muted)' }}>
+              {movModal.tipo === 'entrada' ? (
+                <>
+                  Informe a quantidade recebida de{' '}
+                  <strong style={{ color: 'var(--ac-text)' }}>{movModal.item.nome}</strong>.
+                  O estoque será atualizado e o registro entra no histórico de movimentações.
+                </>
+              ) : (
+                <>
+                  Registre a quantidade retirada de{' '}
+                  <strong style={{ color: 'var(--ac-text)' }}>{movModal.item.nome}</strong>.
+                  Não é permitido baixar mais do que o estoque atual.
+                </>
+              )}
+            </p>
+
+            <div
+              className="rounded-lg px-4 py-3 text-sm flex flex-wrap items-center gap-2"
+              style={{ background: 'var(--ac-bg)', border: '1px solid var(--ac-border)' }}
+            >
+              <span style={{ color: 'var(--ac-muted)' }}>Estoque atual:</span>
+              <strong style={{ color: 'var(--ac-text)' }}>
+                {Number(movModal.item.estoque_atual).toLocaleString('pt-BR')}
+              </strong>
+              {movQtdNum > 0 && (
+                <>
+                  <span style={{ color: 'var(--ac-muted)' }}>→</span>
+                  <strong
+                    style={{
+                      color:
+                        movModal.tipo === 'entrada'
+                          ? '#15803d'
+                          : Math.round((Number(movModal.item.estoque_atual) - movQtdNum) * 1000) / 1000 < 0
+                            ? '#dc2626'
+                            : '#c2410c',
+                    }}
+                  >
+                    {(
+                      movModal.tipo === 'entrada'
+                        ? Number(movModal.item.estoque_atual) + movQtdNum
+                        : Number(movModal.item.estoque_atual) - movQtdNum
+                    ).toLocaleString('pt-BR')}
+                  </strong>
+                </>
+              )}
+            </div>
+
+            <Input
+              id="mov-qtd-consumivel"
+              label={movModal.tipo === 'entrada' ? 'Quantidade recebida *' : 'Quantidade da baixa *'}
+              type="number"
+              min="0.001"
+              step="0.001"
+              value={movQtd}
+              onChange={(e) => {
+                setMovQtd(e.target.value)
+                setMovErro('')
+              }}
+            />
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color: 'var(--ac-text)' }}>
+                Observação (opcional)
+              </label>
+              <input
+                type="text"
+                value={movObs}
+                onChange={(e) => setMovObs(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none transition-all"
+                style={{
+                  background: 'var(--ac-card)',
+                  border: '1px solid var(--ac-border)',
+                  color: 'var(--ac-text)',
+                }}
+                placeholder="Ex.: Uso no escritório, reposição..."
+              />
+            </div>
+
+            {movErro && (
+              <p className="text-sm rounded-lg px-3 py-2" style={{ color: '#dc2626', background: '#fee2e2' }}>
+                {movErro}
+              </p>
+            )}
+
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
+              <Button variant="secondary" onClick={() => setMovModal(null)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={confirmarMovimento}
+                loading={movLoading}
+                disabled={movQtdNum <= 0}
+                variant={movModal.tipo === 'baixa' ? 'danger' : 'primary'}
+              >
+                {movModal.tipo === 'entrada' ? 'Confirmar entrada' : 'Confirmar baixa'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Modal de confirmação de delete */}
-      <Modal open={!!deletando} onClose={() => setDeletando(null)} title="Excluir matéria-prima">
+      <Modal open={!!deletando} onClose={() => setDeletando(null)} title="Excluir consumível">
         <div className="flex flex-col gap-4">
           <p className="text-sm" style={{ color: 'var(--ac-text)' }}>
             Tem certeza que deseja excluir <strong>{deletando?.nome}</strong>?
